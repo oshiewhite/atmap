@@ -1,0 +1,175 @@
+/* styles.css */
+
+/* Basic page and map styling */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Relative container for map and overlays */
+#atmhtml-section {
+  position: relative; /* Establishes a new positioning context */
+  width: 100%;
+  height: 500px; /* Adjust as needed or make responsive */
+}
+
+/* Map styling */
+#map {
+  width: 100%;
+  height: 100%; /* Fills the #atmhtml-section container */
+  /* Removed absolute positioning */
+}
+
+/* Centered display for city name */
+#city-name-display {
+  position: absolute;
+  top: 10px; /* Positioned relative to #atmhtml-section */
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 5px 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  z-index: 1000;
+  font-size: 16px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+}
+
+/* The "Menu" button */
+#menu-toggle {
+  position: absolute;
+  top: 10px; /* Positioned relative to #atmhtml-section */
+  right: 10px;
+  z-index: 1100;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+/* Coordinates display */
+#cursor-coordinates {
+  position: absolute;
+  top: 40px; /* Positioned below #menu-toggle */
+  left: 10px;
+  z-index: 1100;
+  background-color: white;
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 12px;
+}
+
+#clicked-coordinates {
+  position: absolute;
+  top: 65px; /* Just below #cursor-coordinates */
+  left: 10px;
+  z-index: 1100;
+  background-color: white;
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 12px;
+}
+
+/* Locate Me button */
+#locate-btn {
+  position: absolute;
+  top: 90px; /* Positioned below other elements */
+  left: 10px;
+  z-index: 1100;
+  background-color: white;
+  padding: 10px;
+  border: 2px solid #ccc;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+/* Collapsible sidebar (slides from the right) */
+#sidebar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 250px;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.95);
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.3);
+  overflow-y: auto;
+  transition: transform 0.3s ease;
+  transform: translateX(100%); /* Hidden off-screen by default */
+  z-index: 1050;
+}
+
+#sidebar.open {
+  transform: translateX(0);
+}
+
+/* Checkboxes styling inside the sidebar */
+.checkbox-container {
+  padding: 10px;
+  border-bottom: 1px solid #ccc;
+}
+
+/* Sub-menu always displayed, but indented for clarity */
+.sub-menu {
+  display: block;      /* Always visible */
+  margin-left: 20px;   /* Indentation */
+}
+
+/* Number input styling */
+#number-input-container {
+  padding: 10px;
+}
+
+.number-input {
+  width: 80%;
+  padding: 5px;
+  margin: 5px 0;
+  border: 2px solid #ccc;
+  border-radius: 5px;
+}
+
+/* Footer styling */
+#footer {
+  background-color: #f8f8f8;
+  padding: 20px;
+  text-align: center;
+  /* Ensure it stays at the bottom */
+  position: relative;
+  width: 100%;
+}
+
+
+/* Position the feedback container within the map */
+#feedback-container {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  z-index: 2000; /* Ensure it appears on top */
+  text-align: center;
+}
+
+/* Style the feedback button */
+#feedback-container button {
+  padding: 6px 10px;
+  background-color: #154D14; /* Dark Forest Green */
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.3s;
+  line-height: 1.2;
+}
+
+/* Hover effect */
+#feedback-container button:hover {
+  background-color: #103B10;
+}

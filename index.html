@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Appalachian Trail Map</title>
+  <!-- Leaflet / external CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.css"
+  />
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css"
+  />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"
+  />
+  <link rel="icon" type="image/png" href="tent.png" sizes="32x32" />
+
+  <!-- Your custom CSS -->
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- Map Container -->
+  <div id="map"></div>
+
+  <!-- City Name Display (kept pinned at top center) -->
+  <div id="city-name-display">
+    <span id="city-name">Appalachian Trail</span>
+  </div>
+
+  <!-- "Menu" toggle button -->
+  <div id="menu-toggle">Menu</div>
+
+  <!-- Elements that float on the map (outside sidebar) -->
+  <div id="cursor-coordinates">Lat: , Lng: </div>
+  <div id="clicked-coordinates">Click on map to save coordinates</div>
+  <button id="locate-btn">Locate Me</button>
+
+  <!-- Collapsible Sidebar -->
+  <div id="sidebar" class="closed">
+    <!-- Checkboxes and other controls inside sidebar -->
+
+    <!-- PARENT: Resupply Road Crossing -->
+    <div class="checkbox-container">
+      <label>
+        <input type="checkbox" id="resupply-checkbox" checked />
+        Resupply Road Crossing
+      </label>
+
+      <!-- SUB-MENU: Always shown, just indented -->
+      <div id="resupply-submenu" class="sub-menu">
+        <div>
+          <label><input type="checkbox" id="grocery-stores-checkbox" /> Grocery Stores</label>
+        </div>
+        <div>
+          <label><input type="checkbox" id="hostel-checkbox" /> Hostel</label>
+        </div>
+        <div>
+          <label><input type="checkbox" id="postoffice-checkbox" /> Post Office</label>
+        </div>
+        <div>
+          <label><input type="checkbox" id="pharmacy-checkbox" /> Pharmacy</label>
+        </div>
+        <div>
+          <label><input type="checkbox" id="hospital-checkbox" /> Hospital</label>
+        </div>
+        <div>
+          <label><input type="checkbox" id="outfitter-checkbox" /> Outfitter</label>
+        </div>	
+      </div>
+      <!-- End .sub-menu -->
+    </div>
+    <!-- End Resupply Road Crossing -->
+   
+
+   <div class="checkbox-container">
+      <label><input type="checkbox" id="tran-checkbox" /> Transportation</label>
+      <div id="resupply-submenu" class="sub-menu">
+        <div>
+          <label><input type="checkbox" id="shuttle-checkbox" /> Shuttle</label>
+        </div>	
+        <div>
+          <label><input type="checkbox" id="bus-checkbox" /> Bus/Bus Stop</label>
+        </div>
+        <div>
+          <label><input type="checkbox" id="taxi-checkbox" /> Taxi</label>
+        </div>			
+      </div>	  
+	  
+	  
+    </div>
+    
+	
+	<div class="checkbox-container">
+      <label><input type="checkbox" id="crossing-checkbox" /> Access to Road</label>
+    </div>
+    <div class="checkbox-container">
+      <label><input type="checkbox" id="shelter-checkbox" checked /> Shelters</label>
+    </div>
+	<div class="checkbox-container">
+	  <label>
+		<input type="checkbox" id="water-checkbox" checked />
+		Water Source
+	  </label>
+	  <!-- Submenu container for Water subtypes -->
+	  <div id="water-submenu" class="sub-menu"></div>
+	</div>
+
+    <!-- Mile input boxes -->
+    <div id="number-input-container">
+      <input
+        type="number"
+        id="number-input-1"
+        class="number-input"
+        placeholder="Starting Mile"
+      />
+      <br />
+      <input
+        type="number"
+        id="number-input-2"
+        class="number-input"
+        placeholder="Ending Mile"
+      />
+    </div>
+  </div>
+  <!-- End of Sidebar -->
+  
+  
+  <div id="feedback-container">
+    <button id="feedback-button">
+      <span style="font-size: 12px;">Click to Provide Suggestions</span><br>
+      <span style="font-size: 8px;">We Appreciate All Feedback</span>
+    </button>
+  </div>
+  
+  
+  
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.js"
+  ></script>
+
+  <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+
+  <!-- Your map logic (the JS code from your question, including sidebar toggle) -->
+  <script src="js/script.js"></script>
+</body>
+</html>
