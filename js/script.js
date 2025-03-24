@@ -187,7 +187,7 @@ fetch('data/at.geojson')
     .then(response => response.json())
     .then(data => {
         L.geoJSON(data, {
-            style: { color: 'blue' }
+            style: { color: 'red' }
         }).addTo(map);
 
         data.features.forEach(feature => {
