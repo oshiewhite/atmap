@@ -1294,24 +1294,6 @@ roadcrossingClusterGroup.on('clusterclick', function (e) {
 });
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 console.log('Checking if serviceWorker is supported in this browser...');
 
 if ('serviceWorker' in navigator) {
