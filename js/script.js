@@ -3,16 +3,39 @@ const menuToggle = document.getElementById("menu-toggle");
 const sidebar = document.getElementById("sidebar");
 
 menuToggle.addEventListener("click", function () {
-  // Toggle the 'open' class on #sidebar
+										
   sidebar.classList.toggle("open");
 });
 
 
 
-// This code assumes the DOM is already loaded since the button is in the HTML.
+																			   
 document.getElementById('feedback-button').addEventListener('click', function() {
   window.open("https://trailmagic.co/pages/contact", "_blank");
 });
+
+
+
+// Get reference to the toggle button
+const toggleButton = document.getElementById('toggle-leaflet');
+
+// Function to update button text based on mode
+function updateToggleButtonText() {
+  const offlineMode = localStorage.getItem('offlineMode') === 'true';
+  toggleButton.innerText = offlineMode ? 'Switch to Online Mode' : 'Switch to Offline Mode';
+}
+
+// Update text on initial load
+updateToggleButtonText();
+
+// Add event listener to toggle mode and update the display
+toggleButton.addEventListener('click', function(){
+  const offlineMode = localStorage.getItem('offlineMode') === 'true';
+  localStorage.setItem('offlineMode', (!offlineMode).toString());
+  // Reload page to reinitialize with new library references
+  location.reload();
+});
+
 
 
 
@@ -20,19 +43,20 @@ document.getElementById('feedback-button').addEventListener('click', function() 
 var map = L.map('map', {
     closePopupOnClick: false
 }).setView([39.725324, -76.904297], 5);
-var currentCityLayer = null; // Variable to store the current city layer group
-var currentCityName = 'Appalachian Trail'; // Initialize to 'Appalachian Trail'
-var geojsonLayer;
-var cityLayer;
-
-
-
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: 'Map data &copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
     maxZoom: 19,
 }).addTo(map);
 
+
+
+
+
+var currentCityLayer = null; // Variable to store the current city layer group
+var currentCityName = 'Appalachian Trail'; // Initialize to 'Appalachian Trail'
+var geojsonLayer;
+var cityLayer;
 var trailCoordinates = [];
 var mileMarkers = [];
 var userLocationMarker;
@@ -51,7 +75,7 @@ var cityLayerGroups = {};
 
 
 var redIcon = L.icon({
-    iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
+    iconUrl: 'icons/resupply_marker.png',
     iconSize: [32, 32],
     iconAnchor: [16, 32],
     popupAnchor: [0, -32]
@@ -1305,5 +1329,3 @@ if ('serviceWorker' in navigator) {
 }
 
 console.log('Service Worker registration script has run.');
-
-
