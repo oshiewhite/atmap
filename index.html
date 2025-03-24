@@ -4,29 +4,57 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Appalachian Trail Map</title>
-  <!-- Leaflet / external CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.css"
-  />
+  
+  
+  <script>
+    // Check if offline mode is set
+    const offlineMode = localStorage.getItem('offlineMode') === 'true';
+    if (offlineMode) {
+      // Insert offline library references
+      document.write('<link rel="stylesheet" href="libs/leaflet/leaflet.css" />');
+      document.write('<link rel="stylesheet" href="libs/awesomplete-gh-pages/awesomplete.css" />');
+      document.write('<link rel="stylesheet" href="libs/leaflet/leaflet.markercluster/dist/MarkerCluster.css" />');
+      document.write('<link rel="stylesheet" href="libs/leaflet/leaflet.markercluster/dist/MarkerCluster.Default.css" />');
+      document.write('<script src="libs/leaflet/leaflet.js"><\/script>');
+      document.write('<script src="libs/awesomplete-gh-pages/awesomplete.min.js"><\/script>');
+      document.write('<script src="libs/leaflet/leaflet.markercluster/dist/leaflet.markercluster.js"><\/script>');
+    } else {
+      // Insert online library references
+      document.write('<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />');
+      document.write('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.css" />');
+					
+																					   
+	
 
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css"
-  />
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"
-  />
+      document.write('<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />');
+					
+																		 
+	
+      document.write('<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />');
+      document.write('<script src="https://unpkg.com/leaflet/dist/leaflet.js"><\/script>');
+      document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.js"><\/script>');
+      document.write('<script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"><\/script>');
+    }
+  </script>
+  
+  
+  
+  
   <link rel="icon" type="image/png" href="tent.png" sizes="32x32" />
+
+
 
   <!-- Your custom CSS -->
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
+
+
+
+
   <!-- Map Container -->
   <div id="map"></div>
+
 
   <!-- City Name Display (kept pinned at top center) -->
   <div id="city-name-display">
@@ -79,7 +107,7 @@
    
 
    <div class="checkbox-container">
-      <label><input type="checkbox" id="tran-checkbox" /> Transportation</label>
+      <label><input type="checkbox" id="tran-checkbox" /> Transportation (google maps)</label>
       <div id="resupply-submenu" class="sub-menu">
         <div>
           <label><input type="checkbox" id="shuttle-checkbox" /> Shuttle</label>
@@ -138,7 +166,11 @@
     </button>
   </div>
   
-  
+     <!-- Toggle Button for Switching Leaflet Modes -->
+  <div id="toggle-container">
+    <button id="toggle-leaflet">Switch to Offline Mode</button>
+  </div>
+   
   
 
   <!-- Scripts -->
