@@ -7,8 +7,6 @@ menuToggle.addEventListener("click", function () {
   sidebar.classList.toggle("open");
 });
 
-
-
 																			   
 document.getElementById('feedback-button').addEventListener('click', function() {
   window.open("https://trailmagic.co/pages/contact", "_blank");
