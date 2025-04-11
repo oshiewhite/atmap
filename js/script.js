@@ -7,6 +7,8 @@ menuToggle.addEventListener("click", function () {
   sidebar.classList.toggle("open");
 });
 
+
+
 																			   
 document.getElementById('feedback-button').addEventListener('click', function() {
   window.open("https://trailmagic.co/pages/contact", "_blank");
@@ -185,7 +187,7 @@ fetch('data/at.geojson')
     .then(response => response.json())
     .then(data => {
         L.geoJSON(data, {
-            style: { color: 'red' }
+            style: { color: 'purple' }
         }).addTo(map);
 
         data.features.forEach(feature => {
@@ -521,6 +523,7 @@ function loadAll() {
                     var lng = parseFloat(line[2]);
 					var crstype = line[3];
 					var disttowat = line[4];
+					var beartowat = line[5];
 					var markertyperouteid
 					markertype = (line[6]);
 					markertype = String(markertype);
@@ -534,31 +537,14 @@ function loadAll() {
 					roadcrossingClusterGroup.addLayer(crossingMarker);
 				}
  
-
-	 				
-					
-/* 					if (markertype === "Water") {
-					  // `crstype` is in line[3]. For clarity, you stored it into `crstype` variable above.
-					  let subtype = crstype.trim(); // e.g. "Spring", "Stream", "Creek", etc.
-
-					  // Create a new layerGroup for this subtype if not already existing
-					  if (!waterSubtypes[subtype]) {
-						waterSubtypes[subtype] = L.layerGroup();
-					  }
-
-					  // Create the marker
-					  var waterMarker = L.marker([lat, lng], { icon: waterIcon }).bindPopup(
-						`${markertype}<br>${name}<br>${lat.toFixed(6)},${lng.toFixed(6)}<br>${crstype}<br>${disttowat}`
-					  );
-
-					  // Add it to the appropriate subtype layer
-					  waterSubtypes[subtype].addLayer(waterMarker);
-					} */
-					
 					
 					
 					if (markertype === "Water") {
-						let subtype = crstype.trim(); // e.g., "Spring", "Stream"
+						let subtype = crstype.trim();
+						if (disttowat !== null && disttowat !== "" && disttowat !== undefined) {
+							disttowat = disttowat + " yards," + beartowat + " degrees";}
+
+						
 						if (!waterSubtypes[subtype]) {
 							waterSubtypes[subtype] = L.layerGroup();
 						}
@@ -1290,6 +1276,24 @@ roadcrossingClusterGroup.on('clusterclick', function (e) {
         e.layer.zoomToBounds();
     }
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 console.log('Checking if serviceWorker is supported in this browser...');
