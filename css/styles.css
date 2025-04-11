@@ -154,10 +154,10 @@ html, body {
   text-align: center;
 }
 
-/* Style the feedback button */
+/* Style the feedback button 
 #feedback-container button {
   padding: 6px 10px;
-  background-color: #154D14; /* Dark Forest Green */
+  background-color: #154D14; 
   color: white;
   border: none;
   border-radius: 3px;
@@ -168,6 +168,7 @@ html, body {
   transition: background-color 0.3s;
   line-height: 1.2;
 }
+*/
 
 /* Hover effect */
 #feedback-container button:hover {
