@@ -1082,6 +1082,8 @@ document.getElementById('hostel-checkbox').addEventListener('change', function()
     }
 });
 document.getElementById('library-checkbox').addEventListener('change', function() {
+	console.log(`Library checkbox changed: ${this.checked}`);
+
     if (currentCityName === 'Appalachian Trail') {
         if (this.checked) {
             map.addLayer(libraryLayer);
