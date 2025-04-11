@@ -116,6 +116,12 @@ var hostelIcon = L.icon({
 	iconAnchor: [16, 32],
 	popupAnchor: [0, -32]
 });
+var libraryIcon = L.icon({
+	iconUrl: 'icons/library.png',
+	iconSize: [32, 32],
+	iconAnchor: [16, 32],
+	popupAnchor: [0, -32]
+});
 var pharmacyIcon = L.icon({
 	iconUrl: 'icons/pharmacy.png',
 	iconSize: [32, 32],
@@ -267,6 +273,7 @@ fetch('data/mile_markers.csv')
             !resupplyLayerGroup.hasLayer(layer) &&
             !groceryStoresLayer.hasLayer(layer) &&
             !hostelLayer.hasLayer(layer) &&
+			!libraryLayer.hasLayer(layer) &&
             !pharmacyLayer.hasLayer(layer) &&
             !postofficeLayer.hasLayer(layer) &&
             !hospitalLayer.hasLayer(layer) &&
@@ -598,7 +605,7 @@ function addMarkerClickHandler(marker, city, routeid) {
         document.getElementById('city-name-display').innerText = currentCityName;
 
         // Remove global layers if they are on the map
-        [groceryStoresLayer, hostelLayer, postofficeLayer, pharmacyLayer, hospitalLayer, outfitterLayer, shuttleLayer, busLayer, taxiLayer].forEach(layer => {
+        [groceryStoresLayer, hostelLayer, postofficeLayer, pharmacyLayer, hospitalLayer, outfitterLayer, libraryLayer, shuttleLayer, busLayer, taxiLayer].forEach(layer => {
             if (map.hasLayer(layer)) {
                 map.removeLayer(layer);
             }
@@ -611,7 +618,7 @@ function addMarkerClickHandler(marker, city, routeid) {
         }
 
         // Programmatically check the checkboxes and dispatch the 'change' event
-        ['grocery-stores', 'hostel', 'postoffice', 'pharmacy', 'hospital', 'outfitter'].forEach(id => {
+        ['grocery-stores', 'hostel', 'postoffice', 'pharmacy', 'hospital', 'outfitter','library'].forEach(id => {
             const checkbox = document.getElementById(`${id}-checkbox`);
             checkbox.checked = true;
             checkbox.dispatchEvent(new Event('change'));
@@ -666,7 +673,7 @@ function addMarkerClickHandler(marker, city, routeid) {
         console.log('Popup closed for city:', city);
 
         // Programmatically uncheck the checkboxes and dispatch the 'change' event
-        ['grocery-stores', 'hostel', 'postoffice', 'pharmacy', 'hospital','outfitter'].forEach(id => {
+        ['grocery-stores', 'hostel', 'postoffice', 'pharmacy', 'hospital','outfitter','library'].forEach(id => {
             const checkbox = document.getElementById(`${id}-checkbox`);
             checkbox.checked = false;
             checkbox.dispatchEvent(new Event('change'));
@@ -864,6 +871,7 @@ function areCoordinatesClose(coord1, coord2, tolerance = 0.0001) {
 }
 var groceryStoresLayer = L.layerGroup();
 var hostelLayer = L.layerGroup();
+var libraryLayer = L.layerGroup();
 var postofficeLayer = L.layerGroup();
 var hospitalLayer = L.layerGroup();
 var pharmacyLayer = L.layerGroup();
@@ -904,6 +912,18 @@ function loadGroceryStoresLayer() {
                             .bindPopup(`${name}<br>Hostel<br><a href="${googleMapsSearchUrl}" target="_blank">View on Google Maps</a>`);
 
                         hostelLayer.addLayer(marker);
+                    }		
+
+                     if (type === "library") {
+                        var name = line[0].trim();
+                        var lat = parseFloat(line[1]);
+                        var lng = parseFloat(line[2]);
+
+     
+                        var marker = L.marker([lat, lng], { icon: libraryIcon })
+                            .bindPopup(`${name}<br>Library<br><a href="${googleMapsSearchUrl}" target="_blank">View on Google Maps</a>`);
+
+                        libraryLayer.addLayer(marker);
                     }					
 					
                      if (type === "post office") {
@@ -1052,6 +1072,28 @@ document.getElementById('hostel-checkbox').addEventListener('change', function()
             cityLayerGroups[cityKey].eachLayer(function(marker) {
                 if (marker.options.icon.options.iconUrl === 'icons/hostel.png') {
                     if (document.getElementById('hostel-checkbox').checked) {
+                        map.addLayer(marker);
+                    } else {
+                        map.removeLayer(marker);
+                    }
+                }
+            });
+        }
+    }
+});
+document.getElementById('library-checkbox').addEventListener('change', function() {
+    if (currentCityName === 'Appalachian Trail') {
+        if (this.checked) {
+            map.addLayer(libraryLayer);
+        } else {
+            map.removeLayer(libraryLayer);
+        }
+    } else {
+        var cityKey = currentCityName.toLowerCase();
+        if (cityLayerGroups[cityKey]) {
+            cityLayerGroups[cityKey].eachLayer(function(marker) {
+                if (marker.options.icon.options.iconUrl === 'icons/library.png') {
+                    if (document.getElementById('library-checkbox').checked) {
                         map.addLayer(marker);
                     } else {
                         map.removeLayer(marker);
