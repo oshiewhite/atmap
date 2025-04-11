@@ -30,6 +30,7 @@ const OFFLINE_ASSETS = [
   'icons/shuttle.png',
   'icons/bus.png',
   'icons/taxi.png',
+  'icons/library.png',
 
   // Local library files (used in offline mode)
   'libs/leaflet/leaflet.css',
