@@ -10,9 +10,9 @@ menuToggle.addEventListener("click", function () {
 
 
 																			   
-document.getElementById('feedback-button').addEventListener('click', function() {
+/*document.getElementById('feedback-button').addEventListener('click', function() {
   window.open("https://trailmagic.co/pages/contact", "_blank");
-});
+});*/
 
 
 
