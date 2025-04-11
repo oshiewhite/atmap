@@ -1081,6 +1081,8 @@ document.getElementById('hostel-checkbox').addEventListener('change', function()
         }
     }
 });
+
+console.log(document.getElementById('library-checkbox')); // Should not be null
 document.getElementById('library-checkbox').addEventListener('change', function() {
 	console.log(`Library checkbox changed: ${this.checked}`);
 
