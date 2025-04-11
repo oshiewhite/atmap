@@ -5,41 +5,40 @@ const CACHE_NAME = 'app-cache-v1';
 
 // List all local files to cache for offline mode.
 const OFFLINE_ASSETS = [
-  '/', // index.html is served from the root.
-  '/index.html',
-  '/css/styles.css',
-  '/js/script.js',
+  'index.html',
+  'css/styles.css',
+  'js/script.js',
 
   // Data files (GeoJSON/CSV)
-  '/data/at.geojson',
-  '/data/mile_markers.csv',
-  '/data/resources.csv',
-  '/data/resupply.csv',
-  '/data/places.csv',
+  'data/at.geojson',
+  'data/mile_markers.csv',
+  'data/resources.csv',
+  'data/resupply.csv',
+  'data/places.csv',
 
   // Icons and image assets used by markers and the UI.
-  '/icons/resupply_marker.png',
-  '/icons/tent.png',
-  '/icons/crossing.png',
-  '/icons/water.png',
-  '/icons/post office.png',
-  '/icons/grocery.png',
-  '/icons/hostel.png',
-  '/icons/pharmacy.png',
-  '/icons/hospital.png',
-  '/icons/outfitter.png',
-  '/icons/shuttle.png',
-  '/icons/bus.png',
-  '/icons/taxi.png',
+  'icons/resupply_marker.png',
+  'icons/tent.png',
+  'icons/crossing.png',
+  'icons/water.png',
+  'icons/post office.png',
+  'icons/grocery.png',
+  'icons/hostel.png',
+  'icons/pharmacy.png',
+  'icons/hospital.png',
+  'icons/outfitter.png',
+  'icons/shuttle.png',
+  'icons/bus.png',
+  'icons/taxi.png',
 
   // Local library files (used in offline mode)
-  '/libs/leaflet/leaflet.css',
-  '/libs/leaflet/leaflet.js',
-  '/libs/awesomplete-gh-pages/awesomplete.css',
-  '/libs/awesomplete-gh-pages/awesomplete.min.js',
-  '/libs/leaflet/leaflet.markercluster/dist/MarkerCluster.css',
-  '/libs/leaflet/leaflet.markercluster/dist/MarkerCluster.Default.css',
-  '/libs/leaflet/leaflet.markercluster/dist/leaflet.markercluster.js'
+  'libs/leaflet/leaflet.css',
+  'libs/leaflet/leaflet.js',
+  'libs/awesomplete-gh-pages/awesomplete.css',
+  'libs/awesomplete-gh-pages/awesomplete.min.js',
+  'libs/leaflet/leaflet.markercluster/dist/MarkerCluster.css',
+  'libs/leaflet/leaflet.markercluster/dist/MarkerCluster.Default.css',
+  'libs/leaflet/leaflet.markercluster/dist/leaflet.markercluster.js'
 ];
 
 // Installation: Open the cache and add all the assets.
