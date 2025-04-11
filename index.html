@@ -8,6 +8,18 @@
   
   <script>
     // Check if offline mode is set
+        console.log('testing service worker registration...');
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('service-worker.js')
+          .then(registration => {
+            console.log('Service Worker registered with scope:', registration.scope);
+          })
+          .catch(error => {
+            console.error('Service Worker registration failed:', error);
+          });
+      } else {
+        console.error('Service Worker not supported in this browser');
+      }
     const offlineMode = localStorage.getItem('offlineMode') === 'true';
     if (offlineMode) {
       // Insert offline library references
