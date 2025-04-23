@@ -603,7 +603,7 @@ loadAll()
 loadCityLayerGroups();
 map.on('zoomend', function() {
   const zoom = map.getZoom();
-  const shouldShow = zoom >= 11
+  const shouldShow = zoom >= 15
     && document.getElementById('resupply-checkbox').checked;
 
   resupplyLayerGroup.eachLayer(function(marker) {
