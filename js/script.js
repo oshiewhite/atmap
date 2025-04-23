@@ -586,7 +586,8 @@ function loadAll() {
 						
 						var marker = L.marker([lat, lng], { icon: redIcon }) 
 							.addTo(resupplyLayerGroup)
-							.bindPopup(`${markertype}<br> ${name}<br> ${lat.toFixed(6)},${lng.toFixed(6)}<br>${locationinfo}`, { autoClose: false });
+							.bindPopup(`${markertype}<br> ${name}<br> ${lat.toFixed(6)},${lng.toFixed(6)}<br>${locationinfo}`, { autoClose: false })
+						        .openPopup();
 							//.bindPopup(`${markertype}<br> ${name}<br> ${lat.toFixed(6)},${lng.toFixed(6)}<br>${locationinfo}`);
 							routeid= parseFloat(line[11]);
 							addMarkerClickHandler(marker, name, routeid);
