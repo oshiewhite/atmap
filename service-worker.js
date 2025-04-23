@@ -42,17 +42,36 @@ const OFFLINE_ASSETS = [
   'libs/leaflet/leaflet.markercluster/dist/leaflet.markercluster.js'
 ];
 
-// Installation: Open the cache and add all the assets.
+// Installation: Open the cache and add all the assets, plus geojson 1–100 if they exist.
 self.addEventListener('install', event => {
   console.log('[Service Worker] Install event');
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('[Service Worker] Caching offline assets');
-        return cache.addAll(OFFLINE_ASSETS);
-      })
+    caches.open(CACHE_NAME).then(async cache => {
+      console.log('[Service Worker] Caching core offline assets');
+      // 1) Cache the core assets
+      await cache.addAll(OFFLINE_ASSETS);
+
+      // 2) Attempt to cache data/1.geojson … data/100.geojson, but skip any that 404
+      const geojsonUrls = Array.from({ length: 100 }, (_, i) => `data/${i + 1}.geojson`);
+      await Promise.all(
+        geojsonUrls.map(url =>
+          fetch(url)
+            .then(response => {
+              if (response.ok) {
+                console.log(`[Service Worker] Caching ${url}`);
+                return cache.put(url, response);
+              }
+              // If not OK (404), just skip
+            })
+            .catch(err => {
+              // Network or other error—skip this file
+              console.warn(`[Service Worker] Failed to fetch ${url}:`, err);
+            })
+        )
+      );
+    })
   );
-  // Force the waiting service worker to become the active service worker
+  // Activate this worker immediately, without waiting for old versions to unload
   self.skipWaiting();
 });
 
@@ -60,41 +79,36 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   console.log('[Service Worker] Activate event');
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
+    caches.keys().then(cacheNames =>
+      Promise.all(
         cacheNames.map(name => {
           if (name !== CACHE_NAME) {
             console.log('[Service Worker] Deleting old cache:', name);
             return caches.delete(name);
           }
         })
-      );
-    })
+      )
+    )
   );
+  // Take control of uncontrolled clients (pages) immediately
   self.clients.claim();
 });
 
 // Fetch: Serve cached assets if available, else fetch from network.
 self.addEventListener('fetch', event => {
-  // Log the fetch request for debugging.
   console.log('[Service Worker] Fetching:', event.request.url);
   event.respondWith(
-    caches.match(event.request)
-      .then(cachedResponse => {
-        // Return cached version if we have it.
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        // Otherwise fetch from network.
-        return fetch(event.request)
-          .then(networkResponse => {
-            // Optionally: Cache the new network response here if you want to update your cache.
-            return networkResponse;
-          });
-      })
-      .catch(() => {
-        // Optionally, respond with a fallback (e.g. offline page or default asset) when both cache and network fail.
-        // return caches.match('/offline.html');
-      })
+    caches.match(event.request).then(cachedResponse => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      return fetch(event.request).then(networkResponse => {
+        // Optionally, you could cache new network responses here.
+        return networkResponse;
+      });
+    }).catch(() => {
+      // Optionally, return a fallback resource for failed requests, e.g. offline page
+      // return caches.match('/offline.html');
+    })
   );
 });
