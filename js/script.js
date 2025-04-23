@@ -586,8 +586,8 @@ function loadAll() {
 						
 						var marker = L.marker([lat, lng], { icon: redIcon }) 
 							.addTo(resupplyLayerGroup)
-							.bindPopup(`${markertype}<br> ${name}<br> ${lat.toFixed(6)},${lng.toFixed(6)}<br>${locationinfo}`, { autoClose: false })
-						        .openPopup();
+							.bindPopup(`${markertype}<br> ${name}<br> ${lat.toFixed(6)},${lng.toFixed(6)}<br>${locationinfo}`, { autoClose: false });
+						        //.openPopup();
 							//.bindPopup(`${markertype}<br> ${name}<br> ${lat.toFixed(6)},${lng.toFixed(6)}<br>${locationinfo}`);
 							routeid= parseFloat(line[11]);
 							addMarkerClickHandler(marker, name, routeid);
@@ -601,6 +601,20 @@ function loadAll() {
 }
 loadAll()
 loadCityLayerGroups();
+map.on('zoomend', function() {
+  const zoom = map.getZoom();
+  const shouldShow = zoom >= 8
+    && document.getElementById('resupply-checkbox').checked;
+
+  resupplyLayerGroup.eachLayer(function(marker) {
+    if (shouldShow) {
+      marker.openPopup();
+    } else {
+      marker.closePopup();
+    }
+  });
+});
+
 function addMarkerClickHandler(marker, city, routeid) {
     marker.on('click', function() {
         console.log('Marker clicked for city:', city, 'with routeid:', routeid);
