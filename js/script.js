@@ -440,12 +440,16 @@ function loadCityLayerGroups() {
                         });
 
                         var googleMapsSearchUrl = line[8]; // Use link directly from CSV column I
+			const placeId = line[8].split(':')[1];
+			const mapsUrl = `https://www.google.com/maps/search/?api=1&query_place_id=${placeId}`;
+
+
                         var capitalizedType = type.charAt(0).toUpperCase() + type.slice(1);
 						
 
                         // Create the marker
                         var marker = L.marker([lat, lng], { icon: icon })
-                            .bindPopup(`${name}<br>${capitalizedType}<br><a href="${googleMapsSearchUrl}" target="_blank">${"View on Google Maps"}</a>`);
+                            .bindPopup(`${name}<br>${capitalizedType}<br><a href="${mapsUrl}" target="_blank">${"View on Google Maps"}</a>`);
 
                         // Add the marker to the city layer
                         cityLayerGroups[city].addLayer(marker);
