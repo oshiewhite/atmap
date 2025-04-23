@@ -40,6 +40,8 @@ const OFFLINE_ASSETS = [
   'libs/leaflet/leaflet.markercluster/dist/MarkerCluster.css',
   'libs/leaflet/leaflet.markercluster/dist/MarkerCluster.Default.css',
   'libs/leaflet/leaflet.markercluster/dist/leaflet.markercluster.js'
+  'libs/leaflet/images/marker-icon.png'
+  'libs/leaflet/images/marker-shadow.png'
 ];
 
 // Installation: Open the cache and add all the assets, plus geojson 1–100 if they exist.
