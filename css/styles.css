@@ -197,3 +197,62 @@ html, body {
 #toggle-leaflet:hover {
   background-color: #f0f0f0;
 }					 
+
+/* Hidden by default */
+.sub-menu.is-collapsed {
+  display: none;
+}
+
+.menu-title{
+  cursor: pointer;
+  user-select: none;
+  font-weight: 700;
+  padding: 6px 0;
+}
+
+.menu-section .menu-title::after{
+  content: "▸";
+  float: right;
+  transition: transform 0.15s ease;
+}
+
+.menu-section.is-open .menu-title::after{
+  transform: rotate(90deg);
+}
+
+/* you already have this, keep it */
+.sub-menu.is-collapsed{ display:none; }
+
+
+
+/* Make sidebar a column layout */
+#sidebar {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Keep the account area visible at bottom even when scrolling */
+.sidebar-footer {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  border-top: 1px solid #ccc;
+}
+
+/* Visible button styling (dark text on light background) */
+.account-btn {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #999;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
+  background: #f4f4f4;
+  color: #111;
+}
+
+.account-btn:hover {
+  background: #e9e9e9;
+}
