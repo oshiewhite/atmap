@@ -4,56 +4,67 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Appalachian Trail Map</title>
-  
-  
+
   <script>
-    // Check if offline mode is set
-        console.log('testing service worker registration...');
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('service-worker.js')
-          .then(registration => {
-            console.log('Service Worker registered with scope:', registration.scope);
-          })
-          .catch(error => {
-            console.error('Service Worker registration failed:', error);
-          });
-      } else {
-        console.error('Service Worker not supported in this browser');
-      }
+    // Service worker registration (keep if you want it here)
+    console.log('testing service worker registration...');
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(registration => {
+          console.log('Service Worker registered with scope:', registration.scope);
+        })
+        .catch(error => {
+          console.error('Service Worker registration failed:', error);
+        });
+    } else {
+      console.error('Service Worker not supported in this browser');
+    }
+
+    // Load libs from local (offline) or CDN (online)
     const offlineMode = localStorage.getItem('offlineMode') === 'true';
+
     if (offlineMode) {
-      // Insert offline library references
+      // Offline library references
       document.write('<link rel="stylesheet" href="libs/leaflet/leaflet.css" />');
       document.write('<link rel="stylesheet" href="libs/awesomplete-gh-pages/awesomplete.css" />');
       document.write('<link rel="stylesheet" href="libs/leaflet/leaflet.markercluster/dist/MarkerCluster.css" />');
       document.write('<link rel="stylesheet" href="libs/leaflet/leaflet.markercluster/dist/MarkerCluster.Default.css" />');
+
       document.write('<script src="libs/leaflet/leaflet.js"><\/script>');
       document.write('<script src="libs/awesomplete-gh-pages/awesomplete.min.js"><\/script>');
       document.write('<script src="libs/leaflet/leaflet.markercluster/dist/leaflet.markercluster.js"><\/script>');
+
+      // OMS (offline) — you must have this file at libs/oms.min.js
+      document.write('<script src="libs/oms.min.js"><\/script>');
+
     } else {
-      // Insert online library references
+      // Online library references
       document.write('<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />');
       document.write('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.css" />');
       document.write('<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />');
       document.write('<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />');
+
       document.write('<script src="https://unpkg.com/leaflet/dist/leaflet.js"><\/script>');
       document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.js"><\/script>');
       document.write('<script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"><\/script>');
+
+      // OMS (online) — reliable CDNJS URL
+      document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/OverlappingMarkerSpiderfier-Leaflet/0.2.6/oms.min.js"><\/script>');
     }
   </script>
-  
+
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" href="tent.png" sizes="32x32" />
-
 
   <!-- Your custom CSS -->
   <link rel="stylesheet" href="css/styles.css" />
 </head>
+
 <body>
   <!-- Map Container -->
   <div id="map"></div>
 
-  <!-- City Name Display (kept pinned at top center) -->
+  <!-- City Name Display -->
   <div id="city-name-display">
     <span id="city-name">Appalachian Trail</span>
   </div>
@@ -68,123 +79,194 @@
 
   <!-- Collapsible Sidebar -->
   <div id="sidebar" class="closed">
-    <!-- Checkboxes and other controls inside sidebar -->
 
-    <!-- PARENT: Resupply Road Crossing -->
+    <!-- OFF TRAIL (master toggle) -->
     <div class="checkbox-container">
-      <label>
+      <label class="menu-heading">
         <input type="checkbox" id="resupply-checkbox" checked />
-        Resupply Road Crossing
+        Resupply Town
       </label>
 
-      <!-- SUB-MENU: Always shown, just indented -->
-      <div id="resupply-submenu" class="sub-menu">
-        <div>
-          <label><input type="checkbox" id="grocery-stores-checkbox" /> Grocery Stores</label>
+      <!-- Stay for Night -->
+      <div class="menu-section" data-collapsible>
+        <div class="menu-title">Stay for Night</div>
+        <div class="sub-menu is-collapsed">
+          <div class="sub-item">
+            <label><input type="checkbox" id="hostel-checkbox" /> Hostel</label>
+          </div>
+          <div class="sub-item">
+            <label><input type="checkbox" id="hotel-checkbox" /> Hotel</label>
+          </div>
+          <div class="sub-item">
+            <label><input type="checkbox" id="campground-checkbox" /> Campground</label>
+          </div>
         </div>
-        <div>
-          <label><input type="checkbox" id="hostel-checkbox" /> Hostel</label>
-        </div>
-        <div>
-          <label><input type="checkbox" id="postoffice-checkbox" /> Post Office</label>
-        </div>
-        <div>
-          <label><input type="checkbox" id="pharmacy-checkbox" /> Pharmacy</label>
-        </div>
-        <div>
-          <label><input type="checkbox" id="outfitter-checkbox" /> Outfitter</label>
-        </div>			
-        <div>
-          <label><input type="checkbox" id="hospital-checkbox" /> Hospital</label>
-        </div>
-        <div>
-          <label><input type="checkbox" id="library-checkbox" /> Library</label>
-        </div>			
       </div>
-      <!-- End .sub-menu -->
-    </div>
-    <!-- End Resupply Road Crossing -->
-   
 
-   <div class="checkbox-container">
-      <label><input type="checkbox" id="tran-checkbox" /> Transportation (google maps)</label>
-      <div id="resupply-submenu" class="sub-menu">
-        <div>
-          <label><input type="checkbox" id="shuttle-checkbox" /> Shuttle</label>
-        </div>	
-        <div>
-          <label><input type="checkbox" id="bus-checkbox" /> Bus/Bus Stop</label>
+      <!-- Food Resupply -->
+     <div class="menu-section" data-collapsible>
+        <div class="menu-title">Food Resupply</div>
+        <div class="sub-menu is-collapsed">
+          <div class="sub-item">
+            <label><input type="checkbox" id="grocery-stores-checkbox" /> Full Grocery</label>
+          </div>
+          <div class="sub-item">
+            <label><input type="checkbox" id="general-checkbox" /> General Store / Limited Grocery</label>
+          </div>
+          <div class="sub-item">
+            <label><input type="checkbox" id="fullresupply-checkbox" /> Full Hiker Resupply</label>
+          </div>
+          <div class="sub-item">
+            <label><input type="checkbox" id="partialresupply-checkbox" /> Partial/Minimal Hiker Resupply</label>
+          </div>
         </div>
-        <div>
-          <label><input type="checkbox" id="taxi-checkbox" /> Taxi</label>
-        </div>			
-      </div>	  
+      </div>
 	  
-	  
+	  <!-- Gear Resupply -->
+     <div class="menu-section" data-collapsible>
+        <div class="menu-title">Gear Resupply</div>
+        <div class="sub-menu is-collapsed">
+          <div class="sub-item">
+            <label><input type="checkbox" id="outfitter-checkbox" /> Outfitter</label>
+          </div>
+          <div class="sub-item">
+            <label><input type="checkbox" id="fuel-checkbox" /> Fuel</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Shipping -->
+     <div class="menu-section" data-collapsible>
+        <div class="menu-title">Shipping</div>
+        <div class="sub-menu is-collapsed">
+          <div class="sub-item">
+            <label><input type="checkbox" id="postoffice-checkbox" /> Post Office</label>
+          </div>
+          <div class="sub-item">
+            <label><input type="checkbox" id="business-accepts-checkbox" /> Business Accepts</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Wash Up -->
+     <div class="menu-section" data-collapsible>
+        <div class="menu-title">Wash Up (no night stay required)</div>
+        <div class="sub-menu is-collapsed">
+          <div class="sub-item">
+            <label><input type="checkbox" id="laundromat-checkbox" /> Laundromat</label>
+          </div>
+          <div class="sub-item">
+            <label><input type="checkbox" id="shower-only-checkbox" /> Shower</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Transportation -->
+     <div class="menu-section" data-collapsible>
+        <div class="menu-title">Transportation</div>
+        <div class="sub-menu is-collapsed">
+          <div class="sub-item">
+            <label><input type="checkbox" id="shuttle-checkbox" /> Shuttle</label>
+          </div>
+          <div class="sub-item">
+            <label><input type="checkbox" id="taxi-checkbox" /> Taxi</label>
+          </div>
+          <div class="sub-item">
+            <label><input type="checkbox" id="bus-checkbox" /> Bus Stop</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Restaurant -->
+     <div class="menu-section" data-collapsible>
+        <div class="menu-title">Restaurant</div>
+        <div class="sub-menu is-collapsed">
+          <div class="sub-item">
+            <label><input type="checkbox" id="fastfood-checkbox" /> Fast food</label>
+          </div>
+          <div class="sub-item">
+            <label><input type="checkbox" id="buffet-checkbox" /> Buffet</label>
+          </div>
+          <div class="sub-item">
+            <label><input type="checkbox" id="restaurant-other-checkbox" /> Other</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Medical -->
+     <div class="menu-section" data-collapsible>
+        <div class="menu-title">Medical</div>
+        <div class="sub-menu is-collapsed">
+          <div class="sub-item">
+            <label><input type="checkbox" id="urgentcare-checkbox" /> Urgent Care</label>
+          </div>
+          <div class="sub-item">
+            <label><input type="checkbox" id="hospital-checkbox" /> Hospital</label>
+          </div>
+          <div class="sub-item">
+            <label><input type="checkbox" id="pharmacy-checkbox" /> Pharmacy</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Public Resources -->
+     <div class="menu-section" data-collapsible>
+        <div class="menu-title">Public Resources</div>
+        <div class="sub-menu is-collapsed">
+          <div class="sub-item">
+            <label><input type="checkbox" id="library-checkbox" /> Library</label>
+          </div>
+        </div>
+      </div>
+
     </div>
-    
-	
-	<div class="checkbox-container">
+
+    <!-- Other sidebar items -->
+	 <!-- Crossings -->
+    <div class="checkbox-container">
       <label><input type="checkbox" id="crossing-checkbox" /> Access to Road</label>
     </div>
+	 <!-- Shelter -->
     <div class="checkbox-container">
-      <label><input type="checkbox" id="shelter-checkbox" checked /> Shelters</label>
+      <label><input type="checkbox" id="shelter-checkbox" unchecked /> Shelters</label>
     </div>
-	<div class="checkbox-container">
-	  <label>
-		<input type="checkbox" id="water-checkbox" checked />
-		Water Source
-	  </label>
-	  <!-- Submenu container for Water subtypes -->
-	  <div id="water-submenu" class="sub-menu"></div>
-	</div>
+
+    <div class="checkbox-container">
+      <label><input type="checkbox" id="tent-checkbox" checked /> Tentsite</label>
+    </div>
+
+    <div class="checkbox-container">
+      <label>
+        <input type="checkbox" id="water-checkbox" />
+        Water
+      </label>
+      <div id="water-submenu" class="sub-menu"></div>
+    </div>
 
     <!-- Mile input boxes -->
     <div id="number-input-container">
-      <input
-        type="number"
-        id="number-input-1"
-        class="number-input"
-        placeholder="Starting Mile"
-      />
+      <input type="number" id="number-input-1" class="number-input" placeholder="Starting Mile" />
       <br />
-      <input
-        type="number"
-        id="number-input-2"
-        class="number-input"
-        placeholder="Ending Mile"
-      />
+      <input type="number" id="number-input-2" class="number-input" placeholder="Ending Mile" />
     </div>
+    <!-- Account button pinned to bottom -->
+    <div class="sidebar-footer">
+      <button id="account-btn" class="account-btn">My Account</button>
+    </div>
+
   </div>
   <!-- End of Sidebar -->
-  
-<!--  
-  <div id="feedback-container">
-    <button id="feedback-button">
-      <span style="font-size: 12px;">Click to Provide Suggestions</span><br>
-      <span style="font-size: 8px;">We Appreciate All Feedback</span>
-    </button>
-  </div>
-	-->
 
-  
-     <!-- Toggle Button for Switching Leaflet Modes -->
+  <!-- Toggle Button for Switching Leaflet Modes -->
   <div id="toggle-container">
     <button id="toggle-leaflet">Switch to Offline Mode</button>
   </div>
-   
   
 
-  <!-- Scripts -->
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script
-    src="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.js"
-  ></script>
-
+  <!-- Turf only (Leaflet / Awesomplete / MarkerCluster / OMS are loaded via the head loader above) -->
   <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
-  <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
 
-  <!-- Your map logic (the JS code from your question, including sidebar toggle) -->
-  <script src="js/script.js"></script>
+  <!-- Your map logic -->
+  <script type="module" src="js/script.js"></script>
 </body>
 </html>
