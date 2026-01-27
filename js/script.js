@@ -67,7 +67,7 @@ try {
     let username = "";
 
     while (true) {
-      username = (window.prompt("Create a username (required to submit feedback):") || "").trim();
+      username = (window.prompt("Please create a username.") || "").trim();
 
       // cancel/blank = not allowed
       if (!username) {
@@ -307,6 +307,50 @@ var resupplyLayerGroup = L.layerGroup().addTo(map);
 var intersectionsLayerGroup = L.layerGroup().addTo(map);
 var cityLayerGroups = {};
 
+// --- Multi-city "active cities" support ---
+let activeCityKeys = null;              // array of cityKey strings (lowercase), or null
+let currentGeoJsonLayers = [];          // store multiple route layers, not just one
+
+function clearActiveCityMode() {
+  // remove all loaded geojson route layers
+  if (Array.isArray(currentGeoJsonLayers)) {
+    currentGeoJsonLayers.forEach(l => {
+      if (l && map.hasLayer(l)) map.removeLayer(l);
+    });
+  }
+  currentGeoJsonLayers = [];
+
+  // remove all active city place layers
+  if (Array.isArray(activeCityKeys)) {
+    activeCityKeys.forEach(k => {
+      const g = cityLayerGroups[k];
+      if (g && map.hasLayer(g)) map.removeLayer(g);
+    });
+  }
+  activeCityKeys = null;
+
+  // also remove old single-city references if you still use them elsewhere
+  if (currentCityLayer && map.hasLayer(currentCityLayer)) {
+    map.removeLayer(currentCityLayer);
+    currentCityLayer = null;
+  }
+  if (currentGeoJsonLayer && map.hasLayer(currentGeoJsonLayer)) {
+    map.removeLayer(currentGeoJsonLayer);
+    currentGeoJsonLayer = null;
+  }
+
+  // uncheck auto city type checkboxes
+  CITY_AUTO_TYPES.forEach(type => {
+    const cb = document.getElementById(PLACE_TYPES[type].checkboxId);
+    if (!cb) return;
+    cb.checked = false;
+    cb.dispatchEvent(new Event("change"));
+  });
+
+  currentCityName = "Appalachian Trail";
+  document.getElementById("city-name-display").innerText = currentCityName;
+}
+
 // ==================================================
 // Feedback: Water Markers
 // ==================================================
@@ -483,6 +527,7 @@ fetch('data/mile_markers.csv')
       resupplyLayerGroup.hasLayer(layer) ||
       isPlaceLayerMarker(layer) ||
       Object.values(cityLayerGroups).some(group => group.hasLayer(layer)) ||
+	   (resourceCityLabelLayer && resourceCityLabelLayer.hasLayer(layer)) ||
       layer === userLocationMarker ||
       layer === simulatedLocationMarker;
 
@@ -607,6 +652,107 @@ function createWaterSubmenuCheckboxes() {
   });
 }
 
+
+// Creates text labels for "resource cities" (resources.csv, Col D = yes)
+// City name = Col A (index 0)
+// Show flag  = Col D (index 3)
+// Lat        = Col M (index 12)
+// Lng        = Col N (index 13)
+function createResourceCityTextLabels() {
+  const layer = L.layerGroup().addTo(map);
+
+  // Minimal CSV line parser (handles commas inside quotes)
+  function parseCsvLine(line) {
+    const out = [];
+    let cur = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+        continue;
+      }
+
+      if (ch === "," && !inQuotes) {
+        out.push(cur);
+        cur = "";
+        continue;
+      }
+
+      cur += ch;
+    }
+    out.push(cur);
+    return out.map(s => String(s ?? "").trim());
+  }
+
+  // If you already have escapeHtml(), this will use it; otherwise a tiny fallback
+  const esc =
+    (typeof escapeHtml === "function")
+      ? escapeHtml
+      : (str) => String(str).replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
+
+  fetch("data/resources.csv")
+    .then(r => r.text())
+    .then(text => {
+      const lines = text.split(/\r?\n/).filter(Boolean);
+      if (lines.length <= 1) return;
+
+      // Skip header row (assumes resources.csv has a header)
+      for (let i = 1; i < lines.length; i++) {
+        const c = parseCsvLine(lines[i]);
+        if (c.length < 14) continue;
+
+        const name = (c[0] || "").trim();              // Col A
+        const show = (c[3] || "").trim().toLowerCase(); // Col D
+        const lat = parseFloat(c[12]);                  // Col M
+        const lng = parseFloat(c[13]);                  // Col N
+
+        if (!name) continue;
+        if (show !== "yes") continue;
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+
+        const icon = L.divIcon({
+          className: "resource-city-label",
+          iconSize: null,
+          iconAnchor: [0, 0],
+          html: `
+            <div style="
+              display:inline-block;
+              font-weight:700;
+              font-size:14px;
+              line-height:18px;
+              color:#111;
+              background: rgba(255,255,255,0.3);
+              border:1px solid #333;
+              border-radius:4px;
+              padding:4px 8px;
+              white-space:nowrap;
+              box-shadow:0 1px 3px rgba(0,0,0,0.35);
+              pointer-events:none;
+            ">${esc(name)}</div>
+          `
+        });
+
+        L.marker([lat, lng], {
+          icon,
+          interactive: false,
+          keyboard: false,
+          zIndexOffset: 9000
+        }).addTo(layer);
+      }
+    })
+    .catch(err => console.error("createResourceCityTextLabels error:", err));
+
+  return layer; // optional: lets you keep a reference if you ever want to toggle/remove
+}
+const resourceCityLabelLayer = createResourceCityTextLabels();
 
 function loadAll() {
     fetch('data/resources.csv')
@@ -869,9 +1015,11 @@ const citiesHtml = entries.map(e => {
         `<a href="#" class="zoom-to-city-link"
   data-zoom-lat="${zoomLat}"
   data-zoom-lng="${zoomLng}"
-  data-city="${escapeHtml(e.name)}">
+  data-city="${escapeHtml(e.name)}"
+  data-routeid="${Number.isFinite(e.routeid) ? e.routeid : ""}">
   Zoom to ${safeCity}
 </a>
+
 ` +
         ` &nbsp;|&nbsp; ` +
         `<a href="#" class="resupply-rate-link"
@@ -902,10 +1050,19 @@ const popupHtml =
 			.bindPopup(popupHtml, { autoClose: false });
 
 		  resupplyMarkerIndex[resKey] = marker;
+		  marker.__cityLabels = entries
+  .map(e => {
+    const llLat = Number.isFinite(e.labelLat) ? e.labelLat : e.lat;
+    const llLng = Number.isFinite(e.labelLng) ? e.labelLng : e.lng;
+    if (!Number.isFinite(llLat) || !Number.isFinite(llLng)) return null;
+    return makeCityLabelMarker(e.name, llLat, llLng);
+  })
+  .filter(Boolean);
 
 		  // ✅ make the shared marker behave like a city marker (pick the first city's route)
-		  const routeid = entries[0].routeid;
-		  addMarkerClickHandler(marker, entries[0].name, routeid);
+		  // Pass ALL cities/routeids into the handler
+addMarkerClickHandler(marker, entries);
+
 		});
 
 
@@ -1085,124 +1242,161 @@ function openWaterFeedbackPopup(marker, key, waterName) {
 }
 
 
-function addMarkerClickHandler(marker, city, routeid) {
-    marker.on('click', function() {
-        console.log('Marker clicked for city:', city, 'with routeid:', routeid);
+function addMarkerClickHandler(marker, cityOrCities, routeidMaybe) {
 
-        // Update city name display and set currentCityName
-        currentCityName = city.charAt(0).toUpperCase() + city.slice(1);
-        document.getElementById('city-name-display').innerText = currentCityName;
+  marker.on("click", async function () {
 
-        // Remove global layers if they are on the map
-    Object.keys(PLACE_TYPES).forEach(type => {
-      const layer = placeLayers[type];
-      if (map.hasLayer(layer)) map.removeLayer(layer);
-    });
+    // Always clear old mode first
+    clearActiveCityMode();
 
+    // Normalize input into an array of { city, routeid }
+    let cities = [];
+    if (Array.isArray(cityOrCities)) {
+      cities = cityOrCities
+        .map(x => ({
+          city: (x.name || x.city || "").trim(),
+          routeid: Number(x.routeid)
+        }))
+        .filter(x => x.city && Number.isFinite(x.routeid));
+    } else {
+      const city = String(cityOrCities || "").trim();
+      const routeid = Number(routeidMaybe);
+      if (city && Number.isFinite(routeid)) cities = [{ city, routeid }];
+    }
 
-        // Remove the current GeoJSON layer if it exists
-        if (currentGeoJsonLayer) {
-            map.removeLayer(currentGeoJsonLayer);
-            currentGeoJsonLayer = null;
-        }
+    if (!cities.length) {
+      console.warn("No cities/routeids found for marker");
+      return;
+    }
 
-        // Programmatically check the checkboxes and dispatch the 'change' event
+    // Set active city keys (lowercase)
+    activeCityKeys = [...new Set(cities.map(c => c.city.toLowerCase()))];
+
+    // Update display name
+    currentCityName = (cities.length === 1)
+      ? (cities[0].city.charAt(0).toUpperCase() + cities[0].city.slice(1))
+      : `${cities.length} Resupply Towns`;
+
+    document.getElementById("city-name-display").innerText = currentCityName;
+
+    // Auto-check + fire place type toggles (now uses activeCityKeys)
     CITY_AUTO_TYPES.forEach(type => {
       const cb = document.getElementById(PLACE_TYPES[type].checkboxId);
       if (!cb) return;
       cb.checked = true;
       cb.dispatchEvent(new Event("change"));
     });
-	scheduleAutoSpiderfy(); // <-- ADD THIS HERE TOO
 
-
-        // Fetch and display the city's GeoJSON route
-        fetch('data/' + routeid + '.geojson')
-            .then(response => response.json())
-            .then(data => {
-                console.log('Successfully fetched GeoJSON data for routeid:', routeid);
-                currentGeoJsonLayer = L.geoJSON(data, {
-                    style: { color: 'purple', weight: 3 }
-                }).addTo(map);
-                map.fitBounds(currentGeoJsonLayer.getBounds());
-				map.once("moveend", scheduleAutoSpiderfy);
-				map.once("zoomend", scheduleAutoSpiderfy);
-            })
-            .catch(error => {
-                console.error('Error fetching and parsing the GeoJSON file:', error);
-                map.setView(marker.getLatLng(), 18);
-            });
-
-        // Normalize city name to lowercase
-        var cityKey = city.toLowerCase();
-
-        // Remove previous city layers if any
-        if (currentCityLayer && map.hasLayer(currentCityLayer)) {
-            map.removeLayer(currentCityLayer);
-        }
-
-        // Add the city's layer group to the map
-        if (cityLayerGroups[cityKey]) {
-            currentCityLayer = cityLayerGroups[cityKey];
-            map.addLayer(currentCityLayer);
-
-            // Remove the city's grocery stores if checkbox is unchecked
-            if (!document.getElementById('grocery-stores-checkbox').checked) {
-                currentCityLayer.eachLayer(function(marker) {
-                    if (marker.options.icon.options.iconUrl === 'icons/grocery.png') {
-                        map.removeLayer(marker);
-                    }
-                });
-            }
-		scheduleAutoSpiderfy();
-
-        } else {
-            currentCityLayer = null;
-        }
-
-        // Open the popup for the clicked marker
-		if (marker.__cityLabel && !resupplyLayerGroup.hasLayer(marker.__cityLabel)) resupplyLayerGroup.addLayer(marker.__cityLabel);
-		marker.openPopup(); window.__activeCityMarker = marker;
-
-
-
+    // Turn on all involved city groups
+    activeCityKeys.forEach(k => {
+      const g = cityLayerGroups[k];
+      if (g) map.addLayer(g);
     });
 
-    // Add an event listener for when the popup is closed
-    marker.on('popupclose', function() {
-        console.log('Popup closed for city:', city); if (window.__activeCityMarker === marker) window.__activeCityMarker = null;
-		 // console.log('Popup closed for city:', city);
-		if (marker.__cityLabel && resupplyLayerGroup.hasLayer(marker.__cityLabel)) resupplyLayerGroup.removeLayer(marker.__cityLabel);
+    // Load ALL routes (unique routeids)
+    const routeids = [...new Set(cities.map(c => c.routeid))];
 
+    try {
+// Load ALL routes (unique routeids) — but don't let missing files kill the rest
+const routeids = [...new Set(cities.map(c => c.routeid))];
+const ROUTE_COLORS = ["purple", "green", "orange"];
 
-		
+const results = await Promise.allSettled(
+  routeids.map(async (rid, index) => {
+    const url = `data/${rid}.geojson`;
+    const r = await fetch(url);
 
-        // Programmatically uncheck the checkboxes and dispatch the 'change' event
-    CITY_AUTO_TYPES.forEach(type => {
-      const cb = document.getElementById(PLACE_TYPES[type].checkboxId);
-      if (!cb) return;
-      cb.checked = false;
-      cb.dispatchEvent(new Event("change"));
-    });
+    // 404 / not ok -> treat as "no route file", not fatal
+    if (!r.ok) {
+      throw new Error(`Missing route file: ${url} (HTTP ${r.status})`);
+    }
 
+    const gj = await r.json();
+    const color = ROUTE_COLORS[index % ROUTE_COLORS.length];
 
-        // Remove the current city layer from the map
-        if (currentCityLayer && map.hasLayer(currentCityLayer)) {
-            map.removeLayer(currentCityLayer);
-            currentCityLayer = null;
-        }
+return L.geoJSON(gj, {
+  style: {
+    color,
+    weight: 3
+  }
+});
 
-        // Remove the current GeoJSON layer from the map
-        if (currentGeoJsonLayer && map.hasLayer(currentGeoJsonLayer)) {
-            map.removeLayer(currentGeoJsonLayer);
-            currentGeoJsonLayer = null;
-        }
+  })
+);
 
-        // Reset the city name display and currentCityName
-        currentCityName = 'Appalachian Trail';
-        document.getElementById('city-name-display').innerText = currentCityName;
-    });
+// Keep only successful layers
+const layers = results
+  .filter(x => x.status === "fulfilled")
+  .map(x => x.value);
+
+const failed = results
+  .filter(x => x.status === "rejected")
+  .map(x => x.reason?.message || String(x.reason));
+
+layers.forEach(l => l.addTo(map));
+currentGeoJsonLayers = layers;
+
+// Fit to ALL route bounds if any loaded, otherwise just zoom to marker
+if (layers.length) {
+  const allBounds = L.latLngBounds([]);
+  layers.forEach(l => allBounds.extend(l.getBounds()));
+  if (allBounds.isValid()) map.fitBounds(allBounds);
+} else {
+  map.setView(marker.getLatLng(), 15);
 }
+
+// Optional: log missing routes so you can see what's going on
+if (failed.length) {
+  console.warn("[routes] some routes failed to load:", failed);
+}
+
+// optional: spiderfy after move/zoom settles
+scheduleAutoSpiderfy();
+
+
+    } catch (err) {
+      console.error("Failed loading multi-route GeoJSON:", err);
+      map.setView(marker.getLatLng(), 15);
+    }
+
+    // City label behavior (keep what you had)
+// ✅ City label behavior: single OR multi
+if (marker.__cityLabel) {
+  if (!resupplyLayerGroup.hasLayer(marker.__cityLabel)) {
+    resupplyLayerGroup.addLayer(marker.__cityLabel);
+  }
+}
+
+if (Array.isArray(marker.__cityLabels)) {
+  marker.__cityLabels.forEach(lbl => {
+    if (lbl && !resupplyLayerGroup.hasLayer(lbl)) {
+      resupplyLayerGroup.addLayer(lbl);
+    }
+  });
+}
+
+    marker.openPopup();
+    window.__activeCityMarker = marker;
+  });
+
+  marker.on("popupclose", function () {
+    if (window.__activeCityMarker === marker) window.__activeCityMarker = null;
+if (marker.__cityLabel && resupplyLayerGroup.hasLayer(marker.__cityLabel)) {
+  resupplyLayerGroup.removeLayer(marker.__cityLabel);
+}
+
+if (Array.isArray(marker.__cityLabels)) {
+  marker.__cityLabels.forEach(lbl => {
+    if (lbl && resupplyLayerGroup.hasLayer(lbl)) {
+      resupplyLayerGroup.removeLayer(lbl);
+    }
+  });
+}
+
+    clearActiveCityMode();
+  });
+}
+
 document.getElementById('locate-btn').addEventListener('click', locateUser);
 
 // map.getContainer().addEventListener("click", function (e) {
@@ -1843,6 +2037,50 @@ const placeLayers = {};
 Object.keys(PLACE_TYPES).forEach(type => {
   placeLayers[type] = L.layerGroup();
 });
+function makeCityLabelMarker(cityName, lat, lng) {
+  const cityTextIcon = L.divIcon({
+    className: "city-text-label",
+    iconSize: null,
+    iconAnchor: [0, 0],
+    html: `
+      <div style="
+        display:inline-flex;
+        align-items:center;
+        gap:6px;
+        font-weight:700;
+        font-size:14px;
+        line-height:18px;
+        color:#111;
+        background: rgba(255, 255, 255, 0.3);
+        border:1px solid #333;
+        border-radius:4px;
+        padding:4px 8px;
+        white-space:nowrap;
+        box-shadow:0 1px 3px rgba(0,0,0,0.35);
+      ">
+        <span>${escapeHtml(cityName)}</span>
+        <span
+          class="city-label-close"
+          style="
+            cursor:pointer;
+            font-weight:900;
+            padding-left:6px;
+            border-left:1px solid #333;
+          "
+          title="Exit city"
+        >✕</span>
+      </div>
+    `
+  });
+
+  return L.marker([lat, lng], {
+    icon: cityTextIcon,
+    interactive: true,
+    keyboard: false,
+    zIndexOffset: 10000
+  });
+}
+
 function buildGoogleMapsUrl(raw) {
   // your CSV seems to have placeId sometimes
   // if it's already a URL, just use it
@@ -1971,7 +2209,7 @@ if (cityKey && cityLayerGroups[cityKey]) {
 // replace BOTH of your calls:
 loadPlacesAndCityGroups();
 // ===== Auto spiderfy settings =====
-const AUTO_SPIDERFY_ZOOM   = 15;
+const AUTO_SPIDERFY_ZOOM   = 11;
 const AUTO_SPIDERFY_PX     = 6;   // match nearbyDistance
 const AUTO_SPIDERFY_METERS = 3;   // only spiderfy if basically same coords
 
@@ -2067,25 +2305,27 @@ map.on("moveend", () => scheduleAutoSpiderfy("move"));
 function togglePlaceType(type, checked) {
   const layer = placeLayers[type];
 
-  if (currentCityName === "Appalachian Trail") {
-    // global view: toggle the global LayerGroup
+  // If we're NOT in any city mode, just toggle global layers
+  if (!activeCityKeys || activeCityKeys.length === 0) {
     if (checked) map.addLayer(layer);
     else map.removeLayer(layer);
     return;
   }
 
-  // city selected: toggle markers inside the current city's group only
-  const cityKey = currentCityName.toLowerCase();
-  const cityGroup = cityLayerGroups[cityKey];
-  if (!cityGroup) return;
+  // City mode (single OR multi): toggle markers only inside the active city groups
+  activeCityKeys.forEach(cityKey => {
+    const cityGroup = cityLayerGroups[cityKey];
+    if (!cityGroup) return;
 
-  cityGroup.eachLayer(m => {
-    if (m.__placeType === type) {
-      if (checked) map.addLayer(m);
-      else map.removeLayer(m);
-    }
+    cityGroup.eachLayer(m => {
+      if (m.__placeType === type) {
+        if (checked) map.addLayer(m);
+        else map.removeLayer(m);
+      }
+    });
   });
 }
+
 
 function wirePlaceTypeCheckboxes() {
   Object.keys(PLACE_TYPES).forEach(type => {
