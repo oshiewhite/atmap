@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Appalachian Trail Map</title>
+  
 
   <script>
     // Service worker registration (keep if you want it here)
@@ -33,6 +34,12 @@
       document.write('<script src="libs/leaflet/leaflet.js"><\/script>');
       document.write('<script src="libs/awesomplete-gh-pages/awesomplete.min.js"><\/script>');
       document.write('<script src="libs/leaflet/leaflet.markercluster/dist/leaflet.markercluster.js"><\/script>');
+	  document.write('<script src="libs/leaflet-gpx/gpx.js"><\/script>');
+	  document.write('<script src="libs/togeojson.umd.js"><\/script>');
+
+
+
+
 
       // OMS (offline) — you must have this file at libs/oms.min.js
       document.write('<script src="libs/oms.min.js"><\/script>');
@@ -47,6 +54,10 @@
       document.write('<script src="https://unpkg.com/leaflet/dist/leaflet.js"><\/script>');
       document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/awesomplete/1.1.5/awesomplete.min.js"><\/script>');
       document.write('<script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"><\/script>');
+	  document.write('<script src="https://unpkg.com/leaflet-gpx@1.7.0/gpx.js"><\/script>');
+	  document.write('<script src="https://unpkg.com/@tmcw/togeojson@0.16.0/dist/togeojson.umd.js"><\/script>');
+
+
 
       // OMS (online) — reliable CDNJS URL
       document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/OverlappingMarkerSpiderfier-Leaflet/0.2.6/oms.min.js"><\/script>');
