@@ -145,6 +145,7 @@ document.getElementById("account-btn")?.addEventListener("click", async () => {
 });
 
 
+const L = window.L;
 
 
 // =======================
@@ -2209,7 +2210,7 @@ if (cityKey && cityLayerGroups[cityKey]) {
 // replace BOTH of your calls:
 loadPlacesAndCityGroups();
 // ===== Auto spiderfy settings =====
-const AUTO_SPIDERFY_ZOOM   = 11;
+const AUTO_SPIDERFY_ZOOM   = 1;
 const AUTO_SPIDERFY_PX     = 6;   // match nearbyDistance
 const AUTO_SPIDERFY_METERS = 3;   // only spiderfy if basically same coords
 
