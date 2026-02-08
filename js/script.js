@@ -221,6 +221,276 @@ var map = L.map('map', {
     closePopupOnClick: false
 }).setView([39.725324, -76.904297], 5);
 
+// ==================================================
+// Elevation Profile (trail_points.csv) - viewport-aware
+// ==================================================
+let TRAIL_POINTS = [];  // { lat, lng, elev, mile }
+let elevationChartReady = false;
+
+function parseTrailPointsCsv(text) {
+  const lines = text.split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) return [];
+
+  // detect delimiter (tabs vs commas)
+  const header = lines[0];
+  const delim = header.includes("\t") ? "\t" : ",";
+
+  // map header -> index
+  const cols = header.split(delim).map(s => s.trim().toLowerCase());
+  const idxLat  = cols.indexOf("latitude");
+  const idxLng  = cols.indexOf("longitude");
+  const idxElev = cols.indexOf("elevation");
+  const idxMile = cols.indexOf("distance_along_trail_miles");
+
+  if (idxLat < 0 || idxLng < 0 || idxElev < 0 || idxMile < 0) {
+    console.warn("[elevation] Missing expected columns in trail_points header:", cols);
+    return [];
+  }
+
+  const out = [];
+  for (let i = 1; i < lines.length; i++) {
+    const parts = lines[i].split(delim);
+    if (parts.length < cols.length) continue;
+
+    const lat  = parseFloat(parts[idxLat]);
+    const lng  = parseFloat(parts[idxLng]);
+    const elev = parseFloat(parts[idxElev]);
+    const mile = parseFloat(parts[idxMile]);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) ||
+        !Number.isFinite(elev) || !Number.isFinite(mile)) continue;
+
+    out.push({ lat, lng, elev, mile });
+  }
+
+  // Ensure sorted by mile so the chart draws correctly
+  out.sort((a, b) => a.mile - b.mile);
+  return out;
+}
+
+async function loadTrailPointsOnce() {
+  if (elevationChartReady) return;
+
+  // Update path if needed:
+  const url = "data/trail_points.csv";
+
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`Failed to load ${url} (HTTP ${r.status})`);
+
+  const text = await r.text();
+  TRAIL_POINTS = parseTrailPointsCsv(text);
+
+  elevationChartReady = true;
+  console.log("[elevation] loaded points:", TRAIL_POINTS.length);
+}
+
+function getTrailPointsInView() {
+  if (!TRAIL_POINTS.length) return [];
+  const b = map.getBounds();
+
+  // simple bounds filter is fast and works well for "show what I’m looking at"
+  const inView = TRAIL_POINTS.filter(p => b.contains([p.lat, p.lng]));
+
+  // Already globally sorted by mile, but filtering keeps order; still safe:
+  // inView.sort((a,b)=>a.mile-b.mile);
+
+  return inView;
+}
+
+function drawElevationProfile(points, opts = {}) {
+  const canvas = document.getElementById("elevation-canvas");
+  const titleEl = document.getElementById("elevation-title-text");
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+  const panel = canvas.parentElement;
+
+  // Resize for devicePixelRatio so it’s crisp
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = panel.clientWidth;
+  const cssH = canvas.clientHeight || 120;
+
+  canvas.width  = Math.max(1, Math.floor(cssW * dpr));
+  canvas.height = Math.max(1, Math.floor(cssH * dpr));
+  canvas.style.width = cssW + "px";
+  canvas.style.height = cssH + "px";
+
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const W = cssW;
+  const H = cssH;
+
+  const bg = opts.bg ?? "rgba(255,255,255,0.0)";
+  const fg = opts.fg ?? "#111";
+  const grid = opts.grid ?? "rgba(0,0,0,0.12)";
+  const line = opts.line ?? "#2b63ff";
+
+  // Clear
+  ctx.clearRect(0, 0, W, H);
+  if (bg && bg !== "transparent") {
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // No data message
+  if (!points || points.length < 2) {
+    ctx.fillStyle = fg;
+    ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    ctx.fillText("Zoom to the trail to see elevation.", 10, 18);
+
+    if (titleEl) titleEl.textContent = "Elevation Profile";
+    return;
+  }
+
+  const padL = 44;
+  const padR = 10;
+  const padT = 8;
+  const padB = 18;
+
+  const plotW = Math.max(1, W - padL - padR);
+  const plotH = Math.max(1, H - padT - padB);
+
+  const minElev = Math.min(...points.map(p => p.elev));
+  const maxElev = Math.max(...points.map(p => p.elev));
+  const minMile = points[0].mile;
+  const maxMile = points[points.length - 1].mile;
+
+  const elevRange = (maxElev - minElev) || 1;
+  const mileRange = (maxMile - minMile) || 1;
+
+  function xFor(mile) {
+    return padL + ((mile - minMile) / mileRange) * plotW;
+  }
+  function yFor(elev) {
+    // top is high elevation
+    return padT + (1 - ((elev - minElev) / elevRange)) * plotH;
+  }
+
+  // Grid lines (simple: 3 horizontals)
+  ctx.strokeStyle = grid;
+  ctx.lineWidth = 1;
+
+  for (let i = 0; i <= 2; i++) {
+    const y = padT + (plotH * i) / 2;
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(padL + plotW, y);
+    ctx.stroke();
+  }
+
+  // Axis labels
+  ctx.fillStyle = fg;
+  ctx.font = "11px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+
+  const topLabel = Math.round(maxElev);
+  const midLabel = Math.round((minElev + maxElev) / 2);
+  const botLabel = Math.round(minElev);
+
+  ctx.fillText(String(topLabel), 6, padT + 9);
+  ctx.fillText(String(midLabel), 6, padT + plotH / 2 + 4);
+  ctx.fillText(String(botLabel), 6, padT + plotH + 4);
+
+  // Line
+  ctx.strokeStyle = line;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    const x = xFor(p.mile);
+    const y = yFor(p.elev);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Title text with range
+  if (titleEl) {
+    const milesText =
+      mileRange >= 0.1
+        ? `${minMile.toFixed(1)}–${maxMile.toFixed(1)} mi`
+        : `${minMile.toFixed(2)}–${maxMile.toFixed(2)} mi`;
+
+    titleEl.textContent = `Elevation Profile • ${milesText} • ${Math.round(minElev)}–${Math.round(maxElev)} elev`;
+  }
+}
+
+let elevationUpdateTimer = null;
+function scheduleElevationUpdate() {
+  clearTimeout(elevationUpdateTimer);
+  elevationUpdateTimer = setTimeout(() => {
+    const pts = getTrailPointsInView();
+    drawElevationProfile(pts);
+  }, 60);
+}
+
+async function initElevationProfile() {
+  try {
+    await loadTrailPointsOnce();
+    // initial draw (whole map view)
+    scheduleElevationUpdate();
+
+    // update on pan/zoom
+    map.on("moveend", scheduleElevationUpdate);
+    map.on("zoomend", scheduleElevationUpdate);
+
+    // redraw on resize (sidebar open/close etc.)
+    window.addEventListener("resize", scheduleElevationUpdate);
+
+  } catch (err) {
+    console.error("[elevation] init failed:", err);
+  }
+}
+
+// Call it once after map is created
+initElevationProfile();
+// =======================
+// Elevation panel collapse/expand
+// =======================
+(function initElevationPanelToggle(){
+  const panel = document.getElementById("elevation-panel");
+  const btn   = document.getElementById("elevation-toggle");
+  const titleText = document.getElementById("elevation-title-text");
+
+  if (!panel || !btn) return;
+
+  // restore saved state
+  const saved = localStorage.getItem("elevationCollapsed") === "true";
+  if (saved) panel.classList.add("is-collapsed");
+
+  function syncButton(){
+    const collapsed = panel.classList.contains("is-collapsed");
+    btn.setAttribute("aria-expanded", String(!collapsed));
+    btn.title = collapsed ? "Show elevation" : "Minimize elevation";
+    btn.textContent = collapsed ? "▴" : "▾";
+
+    // when expanding, redraw so canvas sizes correctly
+    if (!collapsed) {
+      scheduleElevationUpdate();
+    }
+  }
+
+  btn.addEventListener("click", () => {
+    panel.classList.toggle("is-collapsed");
+    localStorage.setItem("elevationCollapsed", panel.classList.contains("is-collapsed"));
+    syncButton();
+  });
+
+  // optional: double-click title bar toggles too
+  panel.querySelector("#elevation-title")?.addEventListener("dblclick", () => {
+    panel.classList.toggle("is-collapsed");
+    localStorage.setItem("elevationCollapsed", panel.classList.contains("is-collapsed"));
+    syncButton();
+  });
+
+  // If your drawElevationProfile currently does:
+  // titleEl.textContent = `Elevation Profile ...`
+  // change it to target #elevation-title-text instead (see next section)
+
+  syncButton();
+})();
+
+
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: 'Map data &copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
     maxZoom: 19,
