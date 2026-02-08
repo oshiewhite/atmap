@@ -208,8 +208,16 @@ html, body {
   user-select: none;
   font-weight: 700;
   padding: 6px 0;
+  line-height: 1.2;
 }
 
+.menu-title .menu-subtitle{
+  display: block;          /* puts it on its own line */
+  font-size: 0.75em;       /* smaller than title */
+  font-weight: 500;
+  opacity: 0.7;            /* visually secondary */
+  margin-top: 2px;
+}
 .menu-section .menu-title::after{
   content: "▸";
   float: right;
@@ -239,6 +247,63 @@ html, body {
   padding: 12px;
   background: rgba(255, 255, 255, 0.95);
   border-top: 1px solid #ccc;
+}
+:root{
+  --sidebar-w: 250px; /* MUST match #sidebar width */
+  --tab-w: 44px;
+  --tab-h: 54px;
+}
+
+/* Hide the old hamburger if it still exists somewhere */
+#menu-toggle{ display:none !important; }
+
+/* Pull tab button */
+#sidebar-tab{
+  position: absolute; /* overridden below when fixed is applied */
+}
+
+#sidebar-tab{
+  position: fixed;
+  top: 10px;
+  z-index: 1200;
+
+  width: var(--tab-w);
+  height: var(--tab-h);
+
+  border: 1px solid rgba(0,0,0,0.25);
+  border-radius: 12px 0 0 12px;
+
+  background: rgba(255,255,255,0.95);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+
+  font-weight: 900;
+  cursor: pointer;
+  user-select: none;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+    right: 0;
+  transition: right 0.3s ease; /* ← matches sidebar slide */
+}
+
+/* Default (sidebar CLOSED): tab sits on the far right edge */
+#sidebar-tab{
+  right: 0;
+  transform: translateX(0);
+}
+
+/* Sidebar OPEN: move tab to the left edge of the sidebar, sticking out */
+/* Sidebar OPEN: tab sits FLUSH on the sidebar seam */
+body.sidebar-open #sidebar-tab{
+  right: var(--sidebar-w);
+  transform: translateX(0);
+}
+
+
+/* Optional: tiny hover feedback */
+#sidebar-tab:hover{
+  background: rgba(245,245,245,0.98);
 }
 
 /* Visible button styling (dark text on light background) */
@@ -305,8 +370,9 @@ html, body {
 
 /* --- Collapsed state --- */
 #elevation-panel.is-collapsed{
-  height: 44px;                 /* just a small bar */
+  height: 24px;                 /* just a small bar */
   padding: 8px 10px;
+  width: 500px;  
 }
 
 #elevation-panel.is-collapsed #elevation-canvas{
@@ -317,3 +383,21 @@ html, body {
 #elevation-panel.is-collapsed #elevation-toggle{
   transform: rotate(180deg);
 }
+/* When sidebar is open, shrink elevation panel so it doesn't sit under the sidebar */
+body.sidebar-open #elevation-panel{
+  right: calc(var(--sidebar-w) + 12px); /* sidebar width + your normal gutter */
+  transition: right 0.3s ease;          /* match sidebar slide speed */
+}
+
+/* If you want the collapsed bar to obey the same "shrink" behavior,
+   remove the fixed width so it can resize naturally */
+#elevation-panel.is-collapsed{
+  width: auto; /* <-- replace your current width: 500px; */
+}
+.menu-divider{
+  height: 1px;
+  background: currentColor;
+  opacity: 0.25;   /* optional: soften it to match your other dividers */
+  margin: 8px 0;
+}
+
