@@ -152,13 +152,34 @@ const L = window.L;
 // UI: Sidebar & Mode Toggle
 // =======================
 // Toggle sidebar
-const menuToggle = document.getElementById("menu-toggle");
+// =======================
+// UI: Sidebar pull-tab toggle
+// =======================
 const sidebar = document.getElementById("sidebar");
+const sidebarTab = document.getElementById("sidebar-tab");
 
-menuToggle.addEventListener("click", function () {
+function setSidebarOpen(isOpen){
+  sidebar.classList.toggle("open", isOpen);
+  document.body.classList.toggle("sidebar-open", isOpen);
 
-  sidebar.classList.toggle("open");
+  // a11y + label
+  sidebarTab.setAttribute("aria-expanded", String(isOpen));
+  sidebarTab.setAttribute("aria-label", isOpen ? "Close menu" : "Open menu");
+
+  // optional: change icon direction
+  sidebarTab.textContent = isOpen ? "❯" : "❮";
+}
+
+
+// start state (match your current default)
+setSidebarOpen(sidebar ? sidebar.classList.contains("open") : false);
+
+
+// click
+sidebarTab.addEventListener("click", () => {
+  setSidebarOpen(!sidebar.classList.contains("open"));
 });
+
 
 // Get reference to the toggle button
 const toggleButton = document.getElementById('toggle-leaflet');
@@ -201,6 +222,15 @@ function wireResupplySubmenus() {
 }
 
 wireResupplySubmenus();
+// --- Water checkbox should NOT toggle submenu ---
+const waterCheckbox = document.getElementById("water-checkbox");
+
+if (waterCheckbox) {
+  waterCheckbox.addEventListener("click", (e) => {
+    e.stopPropagation(); // prevents submenu collapse
+  });
+}
+
 
 // =======================
 // escapeHTML
@@ -226,6 +256,16 @@ var map = L.map('map', {
 // ==================================================
 let TRAIL_POINTS = [];  // { lat, lng, elev, mile }
 let elevationChartReady = false;
+let ELEV_DRAW = {
+  points: [],      // points used for last draw
+  minMile: 0,
+  maxMile: 0,
+  padL: 44,
+  padR: 10,
+  plotW: 1,
+  cssW: 1
+};
+
 
 function parseTrailPointsCsv(text) {
   const lines = text.split(/\r?\n/).filter(Boolean);
@@ -354,6 +394,16 @@ function drawElevationProfile(points, opts = {}) {
   const maxElev = Math.max(...points.map(p => p.elev));
   const minMile = points[0].mile;
   const maxMile = points[points.length - 1].mile;
+    ELEV_DRAW = {
+    points: points.slice(), // copy
+    minMile,
+    maxMile,
+    padL,
+    padR,
+    plotW,
+    cssW: W
+  };
+
 
   const elevRange = (maxElev - minElev) || 1;
   const mileRange = (maxMile - minMile) || 1;
@@ -444,6 +494,136 @@ async function initElevationProfile() {
 
 // Call it once after map is created
 initElevationProfile();
+function initElevationChartInteractions() {
+  const canvas = document.getElementById("elevation-canvas");
+  if (!canvas) return;
+
+  let dragging = false;
+  let startX = 0;
+  let lastX = 0;
+
+  function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+  function xToMile(x) {
+    const d = ELEV_DRAW;
+    if (!d || !d.points || d.points.length < 2) return null;
+
+    // clamp x to plot area
+    const xClamped = clamp(x, d.padL, d.padL + d.plotW);
+    const t = (xClamped - d.padL) / d.plotW;
+    return d.minMile + t * (d.maxMile - d.minMile);
+  }
+
+  function drawSelectionOverlay(x1, x2) {
+    // Redraw current profile first (so overlay is always on top)
+    drawElevationProfile(ELEV_DRAW.points);
+
+    const ctx = canvas.getContext("2d");
+    const rect = canvas.getBoundingClientRect();
+    const W = rect.width;
+    const H = rect.height;
+
+    const a = clamp(Math.min(x1, x2), 0, W);
+    const b = clamp(Math.max(x1, x2), 0, W);
+    const w = Math.max(0, b - a);
+
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,0.10)";
+    ctx.strokeStyle = "rgba(0,0,0,0.35)";
+    ctx.lineWidth = 1;
+
+    ctx.fillRect(a, 0, w, H);
+    ctx.strokeRect(a + 0.5, 0.5, w - 1, H - 1);
+    ctx.restore();
+  }
+
+  function zoomMapToMileRange(m1, m2) {
+    if (!Number.isFinite(m1) || !Number.isFinite(m2)) return;
+
+    const lo = Math.min(m1, m2);
+    const hi = Math.max(m1, m2);
+
+    // tiny ranges are usually accidental clicks; ignore unless you want “click-to-zoom”
+    if (hi - lo < 0.05) return;
+
+    // Use the points that were actually drawn (keeps it consistent with the view-based chart)
+    const pts = (ELEV_DRAW.points || []).filter(p => p.mile >= lo && p.mile <= hi);
+    if (pts.length < 2) return;
+
+    const bounds = L.latLngBounds(pts.map(p => [p.lat, p.lng]));
+    if (bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [30, 30] });
+    }
+  }
+
+  // Mouse
+  canvas.addEventListener("mousedown", (e) => {
+    dragging = true;
+    const rect = canvas.getBoundingClientRect();
+    startX = e.clientX - rect.left;
+    lastX = startX;
+    drawSelectionOverlay(startX, lastX);
+  });
+
+  window.addEventListener("mousemove", (e) => {
+    if (!dragging) return;
+    const rect = canvas.getBoundingClientRect();
+    lastX = e.clientX - rect.left;
+    drawSelectionOverlay(startX, lastX);
+  });
+
+  window.addEventListener("mouseup", () => {
+    if (!dragging) return;
+    dragging = false;
+
+    const m1 = xToMile(startX);
+    const m2 = xToMile(lastX);
+
+    // Redraw without overlay
+    drawElevationProfile(ELEV_DRAW.points);
+
+    zoomMapToMileRange(m1, m2);
+  });
+
+  // Touch
+  canvas.addEventListener("touchstart", (e) => {
+    const t = e.touches[0];
+    if (!t) return;
+    dragging = true;
+    const rect = canvas.getBoundingClientRect();
+    startX = t.clientX - rect.left;
+    lastX = startX;
+    drawSelectionOverlay(startX, lastX);
+  }, { passive: true });
+
+  canvas.addEventListener("touchmove", (e) => {
+    if (!dragging) return;
+    const t = e.touches[0];
+    if (!t) return;
+    const rect = canvas.getBoundingClientRect();
+    lastX = t.clientX - rect.left;
+    drawSelectionOverlay(startX, lastX);
+  }, { passive: true });
+
+  canvas.addEventListener("touchend", () => {
+    if (!dragging) return;
+    dragging = false;
+
+    const m1 = xToMile(startX);
+    const m2 = xToMile(lastX);
+
+    drawElevationProfile(ELEV_DRAW.points);
+    zoomMapToMileRange(m1, m2);
+  });
+
+  // Double click: reset (just redraw based on current map bounds)
+  canvas.addEventListener("dblclick", () => {
+    scheduleElevationUpdate(); // your existing “draw based on viewport” function
+  });
+}
+
+initElevationChartInteractions();
+
 // =======================
 // Elevation panel collapse/expand
 // =======================
@@ -574,7 +754,7 @@ var currentRoutingControl = null;
 var shelterLayerGroup = L.layerGroup();
 var waterLayerGroup = L.layerGroup();
 var waterSubtypes = {};
-var resupplyLayerGroup = L.layerGroup().addTo(map);
+var resupplyLayerGroup = L.layerGroup();
 var intersectionsLayerGroup = L.layerGroup().addTo(map);
 var cityLayerGroups = {};
 
