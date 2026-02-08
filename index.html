@@ -96,7 +96,8 @@
   </div>
 
   <!-- "Menu" toggle button -->
-  <div id="menu-toggle">Menu</div>
+  
+
 
   <!-- Elements that float on the map (outside sidebar) -->
   <div id="cursor-coordinates">Lat: , Lng: </div>
@@ -107,15 +108,37 @@
   <div id="sidebar" class="closed">
 
     <!-- OFF TRAIL (master toggle) -->
-    <div class="checkbox-container">
-      <label class="menu-heading">
-        <input type="checkbox" id="resupply-checkbox" checked />
-        Resupply Town
-      </label>
+<!-- RESUPPLY (master collapsible group) -->
+<div class="checkbox-container">
+  <div class="menu-section is-open" data-collapsible>
+    <div class="menu-title">Resupply</div>
+
+    <div class="sub-menu">
+	 <div class="menu-divider"></div>
+      <!-- OFF TRAIL (master toggle) -->
+	<label class="menu-heading">
+	  <input type="checkbox" id="resupply-checkbox" unchecked />
+	  All Towns
+	</label>
+
+	<div class="sub-item">
+	  <label>
+		<input type="checkbox" id="resupply-town-grocery-checkbox" />
+		Towns with Full Grocery
+	  </label>
+	</div>
+
+	<div class="sub-item">
+	  <label>
+		<input type="checkbox" id="at-town-checkbox" />
+		AT Community Town
+	  </label>
+	</div>
+	 <div class="menu-divider"></div>
 
       <!-- Stay for Night -->
       <div class="menu-section" data-collapsible>
-        <div class="menu-title">Stay for Night</div>
+        <div class="menu-title">🛏 Stay for Night️</div>
         <div class="sub-menu is-collapsed">
           <div class="sub-item">
             <label><input type="checkbox" id="hostel-checkbox" /> Hostel</label>
@@ -130,8 +153,8 @@
       </div>
 
       <!-- Food Resupply -->
-     <div class="menu-section" data-collapsible>
-        <div class="menu-title">Food Resupply</div>
+      <div class="menu-section" data-collapsible>
+        <div class="menu-title">🍜 Food Resupply</div>
         <div class="sub-menu is-collapsed">
           <div class="sub-item">
             <label><input type="checkbox" id="grocery-stores-checkbox" /> Full Grocery</label>
@@ -147,10 +170,10 @@
           </div>
         </div>
       </div>
-	  
-	  <!-- Gear Resupply -->
-     <div class="menu-section" data-collapsible>
-        <div class="menu-title">Gear Resupply</div>
+
+      <!-- Gear Resupply -->
+      <div class="menu-section" data-collapsible>
+        <div class="menu-title">🥾 Gear Resupply</div>
         <div class="sub-menu is-collapsed">
           <div class="sub-item">
             <label><input type="checkbox" id="outfitter-checkbox" /> Outfitter</label>
@@ -162,8 +185,8 @@
       </div>
 
       <!-- Shipping -->
-     <div class="menu-section" data-collapsible>
-        <div class="menu-title">Shipping</div>
+      <div class="menu-section" data-collapsible>
+        <div class="menu-title">📬 Shipping</div>
         <div class="sub-menu is-collapsed">
           <div class="sub-item">
             <label><input type="checkbox" id="postoffice-checkbox" /> Post Office</label>
@@ -175,8 +198,11 @@
       </div>
 
       <!-- Wash Up -->
-     <div class="menu-section" data-collapsible>
-        <div class="menu-title">Wash Up (no night stay required)</div>
+      <div class="menu-section" data-collapsible>
+        <div class="menu-title">
+  🧼 Wash Up
+  <span class="menu-subtitle">(no night stay required)</span>
+</div>
         <div class="sub-menu is-collapsed">
           <div class="sub-item">
             <label><input type="checkbox" id="laundromat-checkbox" /> Laundromat</label>
@@ -188,8 +214,8 @@
       </div>
 
       <!-- Transportation -->
-     <div class="menu-section" data-collapsible>
-        <div class="menu-title">Transportation</div>
+      <div class="menu-section" data-collapsible>
+        <div class="menu-title">🚗 Transportation</div>
         <div class="sub-menu is-collapsed">
           <div class="sub-item">
             <label><input type="checkbox" id="shuttle-checkbox" /> Shuttle</label>
@@ -204,8 +230,8 @@
       </div>
 
       <!-- Restaurant -->
-     <div class="menu-section" data-collapsible>
-        <div class="menu-title">Restaurant</div>
+      <div class="menu-section" data-collapsible>
+        <div class="menu-title">🍴 Restaurant</div>
         <div class="sub-menu is-collapsed">
           <div class="sub-item">
             <label><input type="checkbox" id="buffet-checkbox" /> Buffet</label>
@@ -217,8 +243,8 @@
       </div>
 
       <!-- Medical -->
-     <div class="menu-section" data-collapsible>
-        <div class="menu-title">Medical</div>
+      <div class="menu-section" data-collapsible>
+        <div class="menu-title">⚕️Medical</div>
         <div class="sub-menu is-collapsed">
           <div class="sub-item">
             <label><input type="checkbox" id="urgentcare-checkbox" /> Urgent Care</label>
@@ -233,38 +259,66 @@
       </div>
 
       <!-- Public Resources -->
-     <div class="menu-section" data-collapsible>
-        <div class="menu-title">Public Resources</div>
+      <div class="menu-section" data-collapsible>
+        <div class="menu-title">
+🏛️ Public Resources</div>
         <div class="sub-menu is-collapsed">
           <div class="sub-item">
             <label><input type="checkbox" id="library-checkbox" /> Library</label>
           </div>
         </div>
       </div>
-
     </div>
+  </div>
+</div>
 
     <!-- Other sidebar items -->
-	 <!-- Crossings -->
-    <div class="checkbox-container">
-      <label><input type="checkbox" id="crossing-checkbox" /> Access to Road</label>
-    </div>
-	 <!-- Shelter -->
-    <div class="checkbox-container">
-      <label><input type="checkbox" id="shelter-checkbox" unchecked /> Shelters</label>
-    </div>
+<!-- TRAIL (collapsible group) -->
+<div class="checkbox-container">
+  <div class="menu-section is-open" data-collapsible>
+    <div class="menu-title">Trail</div>
 
-    <div class="checkbox-container">
-      <label><input type="checkbox" id="tent-checkbox" checked /> Tentsite</label>
-    </div>
 
-    <div class="checkbox-container">
-      <label>
-        <input type="checkbox" id="water-checkbox" />
-        Water
-      </label>
-      <div id="water-submenu" class="sub-menu"></div>
+    <div class="sub-menu">
+
+ <div class="menu-divider"></div>
+      <!-- Shelters -->
+      <div class="sub-item">
+        <label><input type="checkbox" id="shelter-checkbox" /> Shelters</label>
+      </div>
+
+      <!-- Tentsite -->
+      <div class="sub-item">
+        <label><input type="checkbox" id="tent-checkbox" unchecked /> Tentsite</label>
+      </div>
+	  
+	  <div class="menu-divider"></div>
+
+      <!-- Access to Road -->
+      <div class="sub-item">
+        <label><input type="checkbox" id="crossing-checkbox" /> Access to Road</label>
+      </div>
+	  <div class="menu-divider"></div>
+      <!-- Water -->
+      <!-- Water (collapsible, with subtypes inside) -->
+<div class="menu-section" data-collapsible>
+  <div class="menu-title">
+    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin:0;">
+      <input type="checkbox" id="water-checkbox" />
+      <span>Water</span>
+    </label>
+  </div>
+
+  <!-- start collapsed if you want -->
+  <div class="sub-menu is-collapsed">
+    <div id="water-submenu"></div>
+  </div>
+</div>
+
     </div>
+  </div>
+</div>
+
 
     <!-- Mile input boxes -->
     <div id="number-input-container">
@@ -279,6 +333,15 @@
 
   </div>
   <!-- End of Sidebar -->
+    <!-- Sidebar pull tab (REPLACES hamburger) -->
+  <button
+    id="sidebar-tab"
+    type="button"
+    aria-label="Close menu"
+    aria-expanded="false"
+  >
+    ❮
+  </button>
 
   <!-- Toggle Button for Switching Leaflet Modes -->
   <div id="toggle-container">
