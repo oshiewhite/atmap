@@ -752,11 +752,16 @@ var simulatedLocationMarker;
 var currentGeoJsonLayer = null; // Variable to store the currently displayed GeoJSON layer
 var currentRoutingControl = null;
 var shelterLayerGroup = L.layerGroup();
+var peakLayerGroup = L.layerGroup();
+var parkingLayerGroup = L.layerGroup();
+var gapLayerGroup = L.layerGroup();
 var waterLayerGroup = L.layerGroup();
 var waterSubtypes = {};
 var resupplyLayerGroup = L.layerGroup();
 var intersectionsLayerGroup = L.layerGroup().addTo(map);
 var cityLayerGroups = {};
+const ROAD_CROSSINGS = []; 
+
 
 // --- Multi-city "active cities" support ---
 let activeCityKeys = null;              // array of cityKey strings (lowercase), or null
@@ -835,8 +840,26 @@ var tentIcon = L.icon({
     iconAnchor: [16, 32],
     popupAnchor: [0, -32]
 });
+var peakIcon = L.icon({
+    iconUrl: 'icons/peak.png',
+    iconSize: [62, 62],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -32]
+});
 var shelterIcon = L.icon({
     iconUrl: 'icons/shelter.png',
+    iconSize: [52, 52],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -32]
+});
+var parkingIcon = L.icon({
+    iconUrl: 'icons/parking.png',
+    iconSize: [52, 52],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -32]
+});
+var gapIcon = L.icon({
+    iconUrl: 'icons/gap.png',
     iconSize: [52, 52],
     iconAnchor: [16, 32],
     popupAnchor: [0, -32]
@@ -973,6 +996,9 @@ fetch('data/mile_markers.csv')
     if (layer instanceof L.Marker) {
       const keep =
       shelterLayerGroup.hasLayer(layer) ||
+	  peakLayerGroup.hasLayer(layer) ||
+	  parkingLayerGroup.hasLayer(layer) ||
+	  gapLayerGroup.hasLayer(layer) ||
       waterLayerGroup.hasLayer(layer) ||
       isWaterSubtype ||
       resupplyLayerGroup.hasLayer(layer) ||
@@ -1227,20 +1253,31 @@ function loadAll() {
 		  markertype = markertype.charAt(0).toUpperCase() + markertype.slice(1);
 
 
-          if (markertype === "Crossing") {
-			const safeName = escapeHtml(name);
-			const safeMarkerType = escapeHtml(markertype);
-			const safeCrsType = escapeHtml(crstype);
+		if (markertype === "Crossing") {
+		  const safeName = escapeHtml(name);
+		  const safeMarkerType = escapeHtml(markertype);
+		  const safeCrsType = escapeHtml(crstype);
 
-			const googleMapsHref = `https://www.google.com/maps?q=${lat.toFixed(6)},${lng.toFixed(6)}`;
-			const googleMapsLink = `<a href="${googleMapsHref}" target="_blank" rel="noopener noreferrer">${safeName}</a>`;
+		  const googleMapsHref = `https://www.google.com/maps?q=${lat.toFixed(6)},${lng.toFixed(6)}`;
+		  const googleMapsLink = `<a href="${googleMapsHref}" target="_blank" rel="noopener noreferrer">${safeName}</a>`;
 
-			var crossingMarker = L.marker([lat, lng], { icon: crossingIcon })
-			  .bindPopup(
-				`${safeMarkerType}<br>${googleMapsLink}<br>${lat.toFixed(6)},${lng.toFixed(6)}<br>${safeCrsType}`
-			  );
-          roadcrossingClusterGroup.addLayer(crossingMarker);
-        }
+		  var crossingMarker = L.marker([lat, lng], { icon: crossingIcon })
+			.bindPopup(
+			  `${safeMarkerType}<br>${googleMapsLink}<br>${lat.toFixed(6)},${lng.toFixed(6)}<br>${safeCrsType}`
+			);
+
+		  roadcrossingClusterGroup.addLayer(crossingMarker);
+
+		  // ✅ index it for nearest-road lookups from Gaps
+		  ROAD_CROSSINGS.push({
+			lat,
+			lng,
+			name,
+			crstype,
+			marker: crossingMarker
+		  });
+		}
+
 
 
           if (markertype === "Water") {
@@ -1294,6 +1331,43 @@ function loadAll() {
 			  .bindPopup(`${safeMarkerType}<br>${safeName}<br>${lat.toFixed(6)},${lng.toFixed(6)}`);
 
           }
+		  if (markertype === "Peak"){
+			const safeMarkerType = escapeHtml(markertype);
+			const safeName = escapeHtml(name);
+
+			L.marker([lat, lng], { icon: peakIcon })
+			  .addTo(peakLayerGroup)
+			  .bindPopup(`${safeName}<br>${lat.toFixed(6)},${lng.toFixed(6)}`);
+
+          }
+		  if (markertype === "Parking"){
+			const safeMarkerType = escapeHtml(markertype);
+			const safeName = escapeHtml(name);
+
+			L.marker([lat, lng], { icon: parkingIcon })
+			  .addTo(parkingLayerGroup)
+			  .bindPopup(`${safeMarkerType}<br>${safeName}<br>${lat.toFixed(6)},${lng.toFixed(6)}`);
+
+          }
+			if (markertype === "Gap") {
+			  const safeName = escapeHtml(name);
+			  const latFixed = lat.toFixed(6);
+			  const lngFixed = lng.toFixed(6);
+
+			  const gapPopup =
+				`${safeName}<br>${latFixed},${lngFixed}` +
+				// Slot gets filled on popupopen only if nearest road > 30ft
+				`<div class="gap-nearby-road-slot"
+					  data-gap-lat="${latFixed}"
+					  data-gap-lng="${lngFixed}"
+					  style="margin-top:8px;"></div>`;
+
+			  L.marker([lat, lng], { icon: gapIcon })
+				.addTo(gapLayerGroup)
+				.bindPopup(gapPopup);
+			}
+
+	  
           if (markertype === "Resupply") {
 			const sharedKey = String(line[14] || "").trim(); // Column O
 
@@ -1524,6 +1598,27 @@ addMarkerClickHandler(marker, entries);
 }
 loadAll()
 /*loadCityLayerGroups();*/
+function findClosestRoadCrossingTo(lat, lng) {
+  if (!Array.isArray(ROAD_CROSSINGS) || ROAD_CROSSINGS.length === 0) return null;
+
+  const from = L.latLng(lat, lng);
+
+  let best = null;
+  let bestDist = Infinity;
+
+  for (const rc of ROAD_CROSSINGS) {
+    if (!Number.isFinite(rc.lat) || !Number.isFinite(rc.lng) || !rc.marker) continue;
+
+    const d = map.distance(from, L.latLng(rc.lat, rc.lng)); // meters
+    if (d < bestDist) {
+      bestDist = d;
+      best = rc;
+    }
+  }
+
+  if (!best) return null;
+  return { ...best, distanceMeters: bestDist };
+}
 
 function buildWaterFeedbackPopupHtml(key) {
   return `
@@ -1976,12 +2071,48 @@ map.on("popupopen", function (e) {
   const root = e.popup.getElement();
   if (!root) return;
 
+// --- GAP: only show "See nearby roads" if nearest road is > 30 ft ---
+const gapSlot = root.querySelector(".gap-nearby-road-slot");
+if (gapSlot && !gapSlot.__gapBound) {
+  gapSlot.__gapBound = true;
+
+  const lat = parseFloat(gapSlot.getAttribute("data-gap-lat"));
+  const lng = parseFloat(gapSlot.getAttribute("data-gap-lng"));
+
+  const THRESHOLD_METERS = 30; // 30 ft
+
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    const nearest = findClosestRoadCrossingTo(lat, lng);
+
+    // Only render the button if we have a nearest crossing AND it's farther than 30 ft
+    if (nearest && Number.isFinite(nearest.distanceMeters) && nearest.distanceMeters > THRESHOLD_METERS) {
+      const latFixed = lat.toFixed(6);
+      const lngFixed = lng.toFixed(6);
+
+      gapSlot.innerHTML = `
+        <button type="button"
+          class="gap-nearby-road-btn"
+          data-gap-lat="${latFixed}"
+          data-gap-lng="${lngFixed}"
+          style="padding:6px 10px; border:1px solid #999; border-radius:8px; background:#fff; cursor:pointer;">
+          See nearby roads
+        </button>
+      `;
+    } else {
+      // <= 30 ft (or no road data): show nothing
+      gapSlot.innerHTML = "";
+    }
+  }
+}
+
   // Prevent stacking multiple listeners if popupopen fires again for same DOM
   if (root.__waterFeedbackBound) return;
   root.__waterFeedbackBound = true;
 
   root.addEventListener("click", async function (ev) {
     const link = ev.target.closest(".water-feedback-link");
+	const gapNearbyBtn = ev.target.closest(".gap-nearby-road-btn");
+
     const ratingBtn = ev.target.closest(".water-rating-btn");
     const submitBtn = ev.target.closest(".water-feedback-submit");
     const cancelLink = ev.target.closest(".water-feedback-cancel");
@@ -1995,6 +2126,39 @@ const placeRatingBtn    = ev.target.closest(".place-rating-btn");
 const placeSubmitBtn    = ev.target.closest(".place-feedback-submit");
 const placeCancelLink   = ev.target.closest(".place-feedback-cancel");
 
+if (gapNearbyBtn) {
+  ev.preventDefault();
+
+  const lat = parseFloat(gapNearbyBtn.getAttribute("data-gap-lat"));
+  const lng = parseFloat(gapNearbyBtn.getAttribute("data-gap-lng"));
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+  const nearest = findClosestRoadCrossingTo(lat, lng);
+
+  if (!nearest || !nearest.marker) {
+    e.popup.setContent(`
+      <div style="min-width:220px;">
+        <div style="font-weight:700; margin-bottom:6px;">Nearby roads</div>
+        <div style="font-size:13px;">No road crossings loaded yet.</div>
+      </div>
+    `);
+    return;
+  }
+
+  // Ensure crossings layer is visible (optional but helpful)
+  const crossingCb = document.getElementById("crossing-checkbox");
+  if (crossingCb && !crossingCb.checked) {
+    crossingCb.checked = true;
+    crossingCb.dispatchEvent(new Event("change"));
+  }
+
+  // Zoom to the nearest road crossing and open its popup
+  const ll = nearest.marker.getLatLng();
+  map.setView(ll, Math.max(map.getZoom(), 15));
+  nearest.marker.openPopup();
+
+  return;
+}
 
     // 1) "Give feedback" link from the normal water popup
 if (link) {
@@ -2411,6 +2575,27 @@ document.getElementById('shelter-checkbox').addEventListener('change', function(
         map.addLayer(shelterLayerGroup);
     } else {
         map.removeLayer(shelterLayerGroup);
+    }
+});
+document.getElementById('parking-checkbox').addEventListener('change', function() {
+    if (this.checked) {
+        map.addLayer(parkingLayerGroup);
+    } else {
+        map.removeLayer(parkingLayerGroup);
+    }
+});
+document.getElementById('gap-checkbox').addEventListener('change', function() {
+    if (this.checked) {
+        map.addLayer(gapLayerGroup);
+    } else {
+        map.removeLayer(gapLayerGroup);
+    }
+});
+document.getElementById('peak-checkbox').addEventListener('change', function() {
+    if (this.checked) {
+        map.addLayer(peakLayerGroup);
+    } else {
+        map.removeLayer(peakLayerGroup);
     }
 });
 //january updated
