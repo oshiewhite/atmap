@@ -326,16 +326,22 @@ async function loadTrailPointsOnce() {
 
 function getTrailPointsInView() {
   if (!TRAIL_POINTS.length) return [];
+
   const b = map.getBounds();
+  const south = b.getSouth();
+  const north = b.getNorth();
+  const west  = b.getWest();
+  const east  = b.getEast();
 
-  // simple bounds filter is fast and works well for "show what I’m looking at"
-  const inView = TRAIL_POINTS.filter(p => b.contains([p.lat, p.lng]));
-
-  // Already globally sorted by mile, but filtering keeps order; still safe:
-  // inView.sort((a,b)=>a.mile-b.mile);
-
-  return inView;
+  const out = [];
+  for (const p of TRAIL_POINTS) {
+    if (p.lat < south || p.lat > north) continue;
+    if (p.lng < west  || p.lng > east) continue;
+    out.push(p);
+  }
+  return out;
 }
+
 
 function drawElevationProfile(points, opts = {}) {
   const canvas = document.getElementById("elevation-canvas");
@@ -745,6 +751,7 @@ var currentCityLayer = null; // Variable to store the current city layer group
 var currentCityName = 'Appalachian Trail'; // Initialize to 'Appalachian Trail'
 var geojsonLayer;
 var cityLayer;
+const mileTextLayer = L.layerGroup().addTo(map);
 var trailCoordinates = [];
 var mileMarkers = [];
 var userLocationMarker;
@@ -892,7 +899,7 @@ var waterClusterGroup = L.markerClusterGroup({
                         </div>
                    </div>`,
             className: 'custom-water-cluster',
-            iconSize: [100, 100]
+            iconSize: [32, 32]
         });
     }
 });
@@ -947,81 +954,49 @@ fetch('data/mile_markers.csv')
         }
 
 
- function addTextMarkers() {
-            var zoomLevel = map.getZoom();
-            mileMarkers.forEach(marker => {
-                var textMarker = L.divIcon({
-                    className: 'mile-marker',
-                    html: `<div style="font-size: ${zoomLevel * 2}px; color: blue;">${marker.mile}</div>`
-                });
+function addTextMarkers() {
+  const zoomLevel = map.getZoom();
 
-                if ((zoomLevel >= 19) ||
-                    (zoomLevel >= 13 && marker.mile % 1 === 0) ||
-                    (zoomLevel >= 10 && marker.mile % 5 === 0) ||
-                    (zoomLevel >= 8 && marker.mile % 25 === 0) ||
-                    (zoomLevel >= 7 && marker.mile % 50 === 0) ||
-                    (zoomLevel >= 6 && marker.mile % 100 === 0) ||
-                    (zoomLevel >= 5 && marker.mile % 250 === 0)) {
-                    L.marker([marker.lat, marker.lng], { icon: textMarker }).addTo(map);
-                }
-            });
+  // Clear ONLY mile labels (not the whole map)
+  mileTextLayer.clearLayers();
 
-            // Re-add user and simulated location markers if they exist
-            if (userLocationMarker) userLocationMarker.addTo(map);
-            if (simulatedLocationMarker) simulatedLocationMarker.addTo(map);
-        }
+  // choose how often to label based on zoom
+  let step = 250;
+  if (zoomLevel >= 19) step = 1;
+  else if (zoomLevel >= 13) step = 1;
+  else if (zoomLevel >= 10) step = 5;
+  else if (zoomLevel >= 8)  step = 25;
+  else if (zoomLevel >= 7)  step = 50;
+  else if (zoomLevel >= 6)  step = 100;
+  else if (zoomLevel >= 5)  step = 250;
 
-        map.on('zoomend', function () {
-    // Clear existing markers except for specific groups and markers
-    map.eachLayer(function (layer) {
+  const b = map.getBounds(); // optional but huge speed boost
 
-    // if (layer === mainTrailLayer) return;
-    if (roadcrossingClusterGroup.hasLayer(layer)) return;
-    if (waterClusterGroup.hasLayer(layer)) return;
-    var isWaterSubtype = Object.values(waterSubtypes).some(function(subtypeGroup) {
-            return subtypeGroup.hasLayer(layer);
-        });
+  mileMarkers.forEach(marker => {
+    if (marker.mile % step !== 0) return;
+    if (!b.contains([marker.lat, marker.lng])) return;
 
-    if (isWaterSubtype) return; // Skip clearing water subtypes
-
-
-        // Remove markers that are not part of specific groups or special markers
-    function isPlaceLayerMarker(layer) {
-      // placeLayers is your new system (LayerGroups keyed by type)
-      return Object.values(placeLayers).some(g => g && g.hasLayer(layer));
-    }
-
-
-    // Remove markers that are not part of specific groups or special markers
-    if (layer instanceof L.Marker) {
-      const keep =
-      shelterLayerGroup.hasLayer(layer) ||
-	  peakLayerGroup.hasLayer(layer) ||
-	  parkingLayerGroup.hasLayer(layer) ||
-	  gapLayerGroup.hasLayer(layer) ||
-      waterLayerGroup.hasLayer(layer) ||
-      isWaterSubtype ||
-      resupplyLayerGroup.hasLayer(layer) ||
-      isPlaceLayerMarker(layer) ||
-      Object.values(cityLayerGroups).some(group => group.hasLayer(layer)) ||
-	   (resourceCityLabelLayer && resourceCityLabelLayer.hasLayer(layer)) ||
-      layer === userLocationMarker ||
-      layer === simulatedLocationMarker;
-
-      if (!keep) {
-      map.removeLayer(layer);
-      }
-    }
-
+    const textMarker = L.divIcon({
+      className: 'mile-marker',
+      html: `<div style="font-size:${zoomLevel * 2}px;">${marker.mile}</div>`
     });
 
-    // Add markers dynamically based on the current zoom level
-    addTextMarkers();
+    L.marker([marker.lat, marker.lng], {
+      icon: textMarker,
+      interactive: false
+    }).addTo(mileTextLayer);
+  });
+}
 
 
-    // Adjust map layout
-    map.invalidateSize();
+        map.on("zoomend", () => {
+  addTextMarkers();
 });
+
+map.on("moveend", () => {
+  addTextMarkers(); // only needed because we’re filtering to bounds
+});
+
 
  });
 
@@ -2057,11 +2032,24 @@ function activateCityFromPopup(city, routeid, focusLatLng) {
 // Event Wiring (Map / UI listeners)
 // ==================================================
 
-map.on('mousemove', function(e) {
-    var lat = e.latlng.lat.toFixed(6);
-    var lng = e.latlng.lng.toFixed(6);
-    document.getElementById('cursor-coordinates').innerText = `${lat},${lng}`;
+let lastMouseLatLng = null;
+let mouseRaf = 0;
+
+map.on("mousemove", (e) => {
+  lastMouseLatLng = e.latlng;
+  if (mouseRaf) return;
+
+  mouseRaf = requestAnimationFrame(() => {
+    mouseRaf = 0;
+    if (!lastMouseLatLng) return;
+
+    const lat = lastMouseLatLng.lat.toFixed(6);
+    const lng = lastMouseLatLng.lng.toFixed(6);
+    const el = document.getElementById("cursor-coordinates");
+    if (el) el.innerText = `${lat},${lng}`;
+  });
 });
+
 map.on('click', function(e) {
     var lat = e.latlng.lat.toFixed(6);
     var lng = e.latlng.lng.toFixed(6);
