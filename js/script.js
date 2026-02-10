@@ -500,6 +500,29 @@ async function initElevationProfile() {
 
 // Call it once after map is created
 initElevationProfile();
+function redrawElevationNow() {
+  const pts = getTrailPointsInView();
+  drawElevationProfile(pts);
+}
+
+// --- Redraw elevation when the panel size changes (sidebar open/close, etc.) ---
+(function watchElevationPanelResize(){
+  const panel = document.getElementById("elevation-panel");
+  if (!panel || !("ResizeObserver" in window)) return;
+
+  let raf = 0;
+  const ro = new ResizeObserver(() => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      redrawElevationNow(); // <-- immediate, no setTimeout(60)
+    });
+  });
+
+  ro.observe(panel);
+})();
+
+
+
 function initElevationChartInteractions() {
   const canvas = document.getElementById("elevation-canvas");
   if (!canvas) return;
