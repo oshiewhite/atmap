@@ -100,8 +100,8 @@
 
 
   <!-- Elements that float on the map (outside sidebar) -->
-  <div id="cursor-coordinates">Lat: , Lng: </div>
-  <div id="clicked-coordinates">Click on map to save coordinates</div>
+
+  <div id="clicked-coordinates"></div>
   <button id="locate-btn">Locate Me</button>
 
   <!-- Collapsible Sidebar -->
@@ -294,11 +294,31 @@
 	  
 	  <div class="menu-divider"></div>
 
+
+      <!-- Gap -->
+      <div class="sub-item">
+        <label><input type="checkbox" id="gap-checkbox" unchecked /> Gap/Notch</label>
+      </div>
+	  
+      <!-- Peak -->
+      <div class="sub-item">
+        <label><input type="checkbox" id="peak-checkbox" unchecked /> Peak</label>
+      </div>
+
+	  <div class="menu-divider"></div>
+
       <!-- Access to Road -->
       <div class="sub-item">
         <label><input type="checkbox" id="crossing-checkbox" /> Access to Road</label>
       </div>
+	 
+
+      <div class="sub-item">
+        <label><input type="checkbox" id="parking-checkbox" /> Parking</label>
+      </div>
 	  <div class="menu-divider"></div>
+
+	  
       <!-- Water -->
       <!-- Water (collapsible, with subtypes inside) -->
 <div class="menu-section" data-collapsible>
