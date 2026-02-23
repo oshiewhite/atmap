@@ -403,39 +403,64 @@ function promptForManualCurrentLocation() {
 }
 
 function showLocationPermissionInstructions() {
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const safariHint = isSafari && isIOS
+    ? " On iPhone Safari, open Settings > Safari > Location, make sure it is allowed, and confirm this site is using HTTPS."
+    : "";
+
   alert(
-    "Location access is blocked. Please enable location permissions for this site in your browser settings, then try 'Suggest a Marker' again."
+    `Location access is blocked. Please enable location permissions for this site in your browser settings, then try again.${safariHint}`
   );
 }
 
-async function requestCurrentLocationForSuggestion() {
+function requestCurrentPosition(options = {}) {
+  const {
+    onSuccess,
+    onError,
+    onUnavailable
+  } = options;
+
   if (!navigator.geolocation) {
-    alert("Geolocation is not supported by this browser.");
+    if (typeof onUnavailable === "function") {
+      onUnavailable();
+    } else {
+      alert("Geolocation is not supported by this browser.");
+    }
     return;
   }
 
-  setSuggestionLocationLoading(true);
-
-  // Best-effort preflight check so we can give clearer UX before requesting location.
-  if (navigator.permissions?.query) {
-    try {
-      const permissionStatus = await navigator.permissions.query({ name: "geolocation" });
-      if (permissionStatus.state === "denied") {
-        showLocationPermissionInstructions();
-        setSuggestionLocationLoading(false);
-        return;
-      }
-    } catch (err) {
-      console.warn("Permissions API lookup failed; continuing with geolocation request.", err);
-    }
+  if (!window.isSecureContext) {
+    alert("Location access requires HTTPS in Safari and many mobile browsers. Please open this site over https:// and try again.");
+    return;
   }
 
+  // Important: request location directly inside the click handler call stack.
+  // This helps Safari on iPhone display the native permission prompt.
   navigator.geolocation.getCurrentPosition(
     (position) => {
+      if (typeof onSuccess === "function") onSuccess(position);
+    },
+    (error) => {
+      if (typeof onError === "function") onError(error);
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+  );
+}
+
+function requestCurrentLocationForSuggestion() {
+  setSuggestionLocationLoading(true);
+
+  requestCurrentPosition({
+    onSuccess: (position) => {
       setSuggestionMarkerAtCurrentLocation(position);
       setSuggestionLocationLoading(false);
     },
-    (error) => {
+    onError: (error) => {
       console.error("Unable to get your location for marker suggestion:", error);
 
       if (error?.code === error.PERMISSION_DENIED) {
@@ -462,12 +487,11 @@ async function requestCurrentLocationForSuggestion() {
       setSuggestionMarkerAtLatLng(manualCurrentLocation);
       setSuggestionLocationLoading(false);
     },
-    {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0
+    onUnavailable: () => {
+      alert("Geolocation is not supported by this browser.");
+      setSuggestionLocationLoading(false);
     }
-  );
+  });
 }
 
 resetSuggestionForm();
@@ -1245,8 +1269,8 @@ map.on("moveend", () => {
  });
 
 function locateUser() {
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(function(position) {
+    requestCurrentPosition({
+        onSuccess: function(position) {
             var userLat = position.coords.latitude;
             var userLng = position.coords.longitude;
 
@@ -1258,12 +1282,18 @@ function locateUser() {
             map.setView([userLat, userLng], 13);
 
             console.log("User's location: ", [userLat, userLng]);
-        }, function(error) {
+        },
+        onError: function(error) {
             console.error("Error getting location: " + error.message);
-        });
-    } else {
-        console.error("Geolocation is not supported by this browser.");
-    }
+
+            if (error?.code === error.PERMISSION_DENIED) {
+              showLocationPermissionInstructions();
+            }
+        },
+        onUnavailable: function() {
+            console.error("Geolocation is not supported by this browser.");
+        }
+    });
 }
 function simulateLocation() {
     var simulatedLat = 34.802779;
