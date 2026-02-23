@@ -329,6 +329,27 @@ body.sidebar-open #sidebar-tab{
   margin-bottom: 12px;
 }
 
+.suggest-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #333;
+}
+
+.suggest-loading-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #c9c9c9;
+  border-top-color: #333;
+  border-radius: 50%;
+  animation: suggestSpin 0.7s linear infinite;
+}
+
+@keyframes suggestSpin {
+  to { transform: rotate(360deg); }
+}
+
 .suggest-copy,
 .suggest-coords {
   margin: 0 0 8px;
@@ -361,6 +382,17 @@ body.sidebar-open #sidebar-tab{
   padding: 8px;
   border: 1px solid #aaa;
   border-radius: 8px;
+}
+
+.suggest-textarea {
+  width: 100%;
+  min-height: 72px;
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 1px solid #aaa;
+  border-radius: 8px;
+  font: inherit;
+  resize: vertical;
 }
 
 #elevation-panel{
