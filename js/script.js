@@ -137,15 +137,27 @@ async function saveFeedback(payload) {
 
 async function saveMarkerSuggestion(payload) {
   const u = await ensureUserProfile();
-
-  const ref = await addDoc(collection(db, "markerSuggestions"), {
+  const suggestionDoc = {
     ...payload,
+    kind: "marker_suggestion",
     createdAt: serverTimestamp(),
     uid: u.uid,
     username: u.username
-  });
+  };
 
-  return ref;
+  try {
+    return await addDoc(collection(db, "markerSuggestions"), suggestionDoc);
+  } catch (err) {
+    const isPermissionDenied = err?.code === "permission-denied" || err?.code === "PERMISSION_DENIED";
+
+    if (!isPermissionDenied) throw err;
+
+    console.warn("markerSuggestions write denied by rules; falling back to feedback collection.", err);
+    return await addDoc(collection(db, "feedback"), {
+      ...suggestionDoc,
+      kind: "markerSuggestion"
+    });
+  }
 }
 document.getElementById("account-btn")?.addEventListener("click", async () => {
   // OPTIONAL: force sign-in before going to account page
@@ -2190,7 +2202,15 @@ submitSuggestedMarkerBtn?.addEventListener("click", async () => {
     resetSuggestionForm();
   } catch (err) {
     console.error("Failed to submit marker suggestion:", err);
-    alert("Unable to submit your suggestion right now. Please try again.");
+
+    const message =
+      err?.code === "permission-denied"
+        ? "We couldn't save your suggestion due to a database permissions setting. Please try again shortly."
+        : err?.message
+          ? `Unable to submit your suggestion right now: ${err.message}`
+          : "Unable to submit your suggestion right now. Please try again.";
+
+    alert(message);
     submitSuggestedMarkerBtn.disabled = false;
   }
 });
