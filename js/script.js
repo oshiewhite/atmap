@@ -284,11 +284,18 @@ const suggestionIcon = L.icon({
 });
 
 const suggestMarkerBtn = document.getElementById("suggest-marker-btn");
+const suggestMarkerLoading = document.getElementById("suggest-marker-loading");
 
 let suggestedDraftMarker = null;
 let suggestionCurrentLocation = null;
 let suggestionMarkerConfirmed = false;
 let suggestionMarkerType = "";
+let suggestionNotes = "";
+
+function setSuggestionLocationLoading(isLoading) {
+  if (suggestMarkerBtn) suggestMarkerBtn.disabled = isLoading;
+  if (suggestMarkerLoading) suggestMarkerLoading.hidden = !isLoading;
+}
 
 function formatLatLng(latlng) {
   if (!latlng) return "—";
@@ -316,6 +323,9 @@ function buildSuggestionPopupHtml() {
         <option value="other" ${suggestionMarkerType === "other" ? "selected" : ""}>Other</option>
       </select>
 
+      <label for="suggest-marker-notes-popup" class="suggest-label">Suggestion details</label>
+      <textarea id="suggest-marker-notes-popup" class="suggest-textarea suggest-marker-notes-input" placeholder="Add details (name, notes, anything helpful)...">${escapeHtml(suggestionNotes)}</textarea>
+
       <button class="account-btn suggest-marker-submit-btn" type="button" ${submitDisabled ? "disabled" : ""}>Submit Suggestion</button>
       <button class="account-btn suggest-marker-cancel-btn" type="button">Cancel</button>
     </div>
@@ -329,9 +339,11 @@ function renderSuggestionPopup(openPopup = false) {
 }
 
 function resetSuggestionForm() {
+  setSuggestionLocationLoading(false);
   suggestionCurrentLocation = null;
   suggestionMarkerConfirmed = false;
   suggestionMarkerType = "";
+  suggestionNotes = "";
 
   if (suggestedDraftMarker && map.hasLayer(suggestedDraftMarker)) {
     map.removeLayer(suggestedDraftMarker);
@@ -343,6 +355,7 @@ function setSuggestionMarkerAtLatLng(currentLatLng) {
   suggestionCurrentLocation = currentLatLng;
   suggestionMarkerConfirmed = false;
   suggestionMarkerType = "";
+  suggestionNotes = "";
 
   if (suggestedDraftMarker && map.hasLayer(suggestedDraftMarker)) {
     map.removeLayer(suggestedDraftMarker);
@@ -401,12 +414,15 @@ async function requestCurrentLocationForSuggestion() {
     return;
   }
 
+  setSuggestionLocationLoading(true);
+
   // Best-effort preflight check so we can give clearer UX before requesting location.
   if (navigator.permissions?.query) {
     try {
       const permissionStatus = await navigator.permissions.query({ name: "geolocation" });
       if (permissionStatus.state === "denied") {
         showLocationPermissionInstructions();
+        setSuggestionLocationLoading(false);
         return;
       }
     } catch (err) {
@@ -417,12 +433,14 @@ async function requestCurrentLocationForSuggestion() {
   navigator.geolocation.getCurrentPosition(
     (position) => {
       setSuggestionMarkerAtCurrentLocation(position);
+      setSuggestionLocationLoading(false);
     },
     (error) => {
       console.error("Unable to get your location for marker suggestion:", error);
 
       if (error?.code === error.PERMISSION_DENIED) {
         showLocationPermissionInstructions();
+        setSuggestionLocationLoading(false);
         return;
       }
 
@@ -430,12 +448,19 @@ async function requestCurrentLocationForSuggestion() {
         "We couldn't access your current location right now. Click OK to enter your location manually and continue."
       );
 
-      if (!useManualLocation) return;
+      if (!useManualLocation) {
+        setSuggestionLocationLoading(false);
+        return;
+      }
 
       const manualCurrentLocation = promptForManualCurrentLocation();
-      if (!manualCurrentLocation) return;
+      if (!manualCurrentLocation) {
+        setSuggestionLocationLoading(false);
+        return;
+      }
 
       setSuggestionMarkerAtLatLng(manualCurrentLocation);
+      setSuggestionLocationLoading(false);
     },
     {
       enableHighAccuracy: true,
@@ -2183,7 +2208,8 @@ map.getContainer().addEventListener("click", async (e) => {
         suggestedMarkerLocation: {
           lat: markerLatLng.lat,
           lng: markerLatLng.lng
-        }
+        },
+        suggestionDetails: suggestionNotes.trim()
       });
 
       alert("Thanks! Your marker suggestion has been submitted.");
@@ -2216,6 +2242,13 @@ map.getContainer().addEventListener("change", (e) => {
 
   suggestionMarkerType = typeSelect.value || "";
   renderSuggestionPopup(true);
+});
+
+map.getContainer().addEventListener("input", (e) => {
+  const notesInput = e.target.closest(".suggest-marker-notes-input");
+  if (!notesInput) return;
+
+  suggestionNotes = notesInput.value || "";
 });
 
 // map.getContainer().addEventListener("click", function (e) {
