@@ -322,6 +322,46 @@ body.sidebar-open #sidebar-tab{
   background: #e9e9e9;
 }
 
+.suggest-marker-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.suggest-marker-flow {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 8px;
+  background: #fff;
+}
+
+.suggest-marker-flow.hidden {
+  display: none;
+}
+
+.suggest-copy,
+.suggest-coords {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.suggest-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.suggest-select {
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 1px solid #aaa;
+  border-radius: 8px;
+}
+
 #elevation-panel{
   position: absolute;
   left: 12px;
@@ -400,4 +440,3 @@ body.sidebar-open #elevation-panel{
   opacity: 0.25;   /* optional: soften it to match your other dividers */
   margin: 8px 0;
 }
-

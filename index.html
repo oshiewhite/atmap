@@ -348,6 +348,30 @@
     </div>
     <!-- Account button pinned to bottom -->
     <div class="sidebar-footer">
+      <div class="suggest-marker-panel">
+        <button id="suggest-marker-btn" class="account-btn" type="button">Suggest a Marker</button>
+
+        <div id="suggest-marker-flow" class="suggest-marker-flow hidden">
+          <p class="suggest-copy">A marker will drop on your current location. Drag it to the exact spot and confirm.</p>
+          <p id="suggest-current-location" class="suggest-coords">Current location: —</p>
+          <p id="suggest-marker-location" class="suggest-coords">Suggested marker: —</p>
+
+          <button id="confirm-suggested-marker-btn" class="account-btn" type="button">Confirm Marker Position</button>
+
+          <label for="suggest-marker-type" class="suggest-label">Marker type</label>
+          <select id="suggest-marker-type" class="suggest-select" disabled>
+            <option value="">Select a type</option>
+            <option value="tentsite">Tentsite</option>
+            <option value="water">Water</option>
+            <option value="business">Business</option>
+            <option value="other">Other</option>
+          </select>
+
+          <button id="submit-suggested-marker-btn" class="account-btn" type="button" disabled>Submit Suggestion</button>
+          <button id="cancel-suggested-marker-btn" class="account-btn" type="button">Cancel</button>
+        </div>
+      </div>
+
       <button id="account-btn" class="account-btn">My Account</button>
     </div>
 

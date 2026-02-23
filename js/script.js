@@ -134,6 +134,19 @@ async function saveFeedback(payload) {
   console.log("[saveFeedback] WROTE DOC:", ref.id);
   return ref;
 }
+
+async function saveMarkerSuggestion(payload) {
+  const u = await ensureUserProfile();
+
+  const ref = await addDoc(collection(db, "markerSuggestions"), {
+    ...payload,
+    createdAt: serverTimestamp(),
+    uid: u.uid,
+    username: u.username
+  });
+
+  return ref;
+}
 document.getElementById("account-btn")?.addEventListener("click", async () => {
   // OPTIONAL: force sign-in before going to account page
   try {
@@ -250,6 +263,124 @@ function escapeHtml(value) {
 var map = L.map('map', {
     closePopupOnClick: false
 }).setView([39.725324, -76.904297], 5);
+
+const suggestionIcon = L.icon({
+  iconUrl: "icons/tent_marker.png",
+  iconSize: [28, 40],
+  iconAnchor: [14, 40],
+  popupAnchor: [0, -36]
+});
+
+const suggestMarkerBtn = document.getElementById("suggest-marker-btn");
+const suggestMarkerFlow = document.getElementById("suggest-marker-flow");
+const suggestCurrentLocation = document.getElementById("suggest-current-location");
+const suggestMarkerLocation = document.getElementById("suggest-marker-location");
+const confirmSuggestedMarkerBtn = document.getElementById("confirm-suggested-marker-btn");
+const suggestMarkerTypeSelect = document.getElementById("suggest-marker-type");
+const submitSuggestedMarkerBtn = document.getElementById("submit-suggested-marker-btn");
+const cancelSuggestedMarkerBtn = document.getElementById("cancel-suggested-marker-btn");
+
+let suggestedDraftMarker = null;
+let suggestionCurrentLocation = null;
+let suggestionMarkerConfirmed = false;
+
+function formatLatLng(latlng) {
+  if (!latlng) return "—";
+  return `${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}`;
+}
+
+function updateSuggestionLocationText() {
+  if (suggestCurrentLocation) {
+    suggestCurrentLocation.textContent = `Current location: ${formatLatLng(suggestionCurrentLocation)}`;
+  }
+
+  const markerLatLng = suggestedDraftMarker ? suggestedDraftMarker.getLatLng() : null;
+  if (suggestMarkerLocation) {
+    suggestMarkerLocation.textContent = `Suggested marker: ${formatLatLng(markerLatLng)}`;
+  }
+}
+
+function resetSuggestionForm() {
+  suggestionCurrentLocation = null;
+  suggestionMarkerConfirmed = false;
+
+  if (suggestedDraftMarker && map.hasLayer(suggestedDraftMarker)) {
+    map.removeLayer(suggestedDraftMarker);
+  }
+  suggestedDraftMarker = null;
+
+  if (suggestMarkerFlow) suggestMarkerFlow.classList.add("hidden");
+  if (suggestMarkerTypeSelect) {
+    suggestMarkerTypeSelect.value = "";
+    suggestMarkerTypeSelect.disabled = true;
+  }
+  if (submitSuggestedMarkerBtn) submitSuggestedMarkerBtn.disabled = true;
+  if (confirmSuggestedMarkerBtn) confirmSuggestedMarkerBtn.disabled = false;
+
+  updateSuggestionLocationText();
+}
+
+function setSuggestionMarkerAtLatLng(currentLatLng) {
+  suggestionCurrentLocation = currentLatLng;
+
+  if (suggestedDraftMarker && map.hasLayer(suggestedDraftMarker)) {
+    map.removeLayer(suggestedDraftMarker);
+  }
+
+  suggestedDraftMarker = L.marker(currentLatLng, {
+    draggable: true,
+    icon: suggestionIcon
+  }).addTo(map);
+
+  suggestedDraftMarker.bindPopup("Drag me to the exact marker location, then confirm in the sidebar.").openPopup();
+
+  suggestedDraftMarker.on("dragend", () => {
+    suggestionMarkerConfirmed = false;
+    if (suggestMarkerTypeSelect) suggestMarkerTypeSelect.disabled = true;
+    if (submitSuggestedMarkerBtn) submitSuggestedMarkerBtn.disabled = true;
+    updateSuggestionLocationText();
+  });
+
+  map.setView([currentLatLng.lat, currentLatLng.lng], 14);
+
+  if (suggestMarkerFlow) suggestMarkerFlow.classList.remove("hidden");
+  if (confirmSuggestedMarkerBtn) confirmSuggestedMarkerBtn.disabled = false;
+  if (suggestMarkerTypeSelect) {
+    suggestMarkerTypeSelect.value = "";
+    suggestMarkerTypeSelect.disabled = true;
+  }
+  if (submitSuggestedMarkerBtn) submitSuggestedMarkerBtn.disabled = true;
+
+  updateSuggestionLocationText();
+}
+
+function setSuggestionMarkerAtCurrentLocation(position) {
+  setSuggestionMarkerAtLatLng({
+    lat: position.coords.latitude,
+    lng: position.coords.longitude
+  });
+}
+
+function promptForManualCurrentLocation() {
+  const defaultCenter = map.getCenter();
+  const latInput = window.prompt("Enter your current latitude (example: 34.123456)", defaultCenter.lat.toFixed(6));
+  if (latInput === null) return null;
+
+  const lngInput = window.prompt("Enter your current longitude (example: -84.123456)", defaultCenter.lng.toFixed(6));
+  if (lngInput === null) return null;
+
+  const lat = Number(latInput.trim());
+  const lng = Number(lngInput.trim());
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    alert("That location is invalid. Please enter valid numeric coordinates.");
+    return null;
+  }
+
+  return { lat, lng };
+}
+
+resetSuggestionForm();
 
 // ==================================================
 // Elevation Profile (trail_points.csv) - viewport-aware
@@ -1942,6 +2073,98 @@ if (Array.isArray(marker.__cityLabels)) {
 }
 
 document.getElementById('locate-btn').addEventListener('click', locateUser);
+
+suggestMarkerBtn?.addEventListener("click", () => {
+  if (!navigator.geolocation) {
+    alert("Geolocation is not supported by this browser.");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      setSuggestionMarkerAtCurrentLocation(position);
+    },
+    (error) => {
+      console.error("Unable to get your location for marker suggestion:", error);
+
+      const useManualLocation = window.confirm(
+        "We couldn't access your current location. Click OK to enter your location manually and continue."
+      );
+
+      if (!useManualLocation) return;
+
+      const manualCurrentLocation = promptForManualCurrentLocation();
+      if (!manualCurrentLocation) return;
+
+      setSuggestionMarkerAtLatLng(manualCurrentLocation);
+    }
+  );
+});
+
+confirmSuggestedMarkerBtn?.addEventListener("click", () => {
+  if (!suggestedDraftMarker) {
+    alert("Start by clicking 'Suggest a Marker' first.");
+    return;
+  }
+
+  suggestionMarkerConfirmed = true;
+  if (suggestMarkerTypeSelect) suggestMarkerTypeSelect.disabled = false;
+  if (submitSuggestedMarkerBtn) {
+    submitSuggestedMarkerBtn.disabled = !suggestMarkerTypeSelect?.value;
+  }
+});
+
+suggestMarkerTypeSelect?.addEventListener("change", () => {
+  if (!submitSuggestedMarkerBtn) return;
+  submitSuggestedMarkerBtn.disabled = !suggestionMarkerConfirmed || !suggestMarkerTypeSelect.value;
+});
+
+submitSuggestedMarkerBtn?.addEventListener("click", async () => {
+  if (!suggestedDraftMarker || !suggestionCurrentLocation) {
+    alert("Please start a marker suggestion first.");
+    return;
+  }
+
+  if (!suggestionMarkerConfirmed) {
+    alert("Please confirm the marker position before submitting.");
+    return;
+  }
+
+  const markerType = suggestMarkerTypeSelect?.value || "";
+  if (!markerType) {
+    alert("Please select a marker type.");
+    return;
+  }
+
+  const markerLatLng = suggestedDraftMarker.getLatLng();
+
+  try {
+    submitSuggestedMarkerBtn.disabled = true;
+
+    await saveMarkerSuggestion({
+      markerType,
+      currentLocation: {
+        lat: suggestionCurrentLocation.lat,
+        lng: suggestionCurrentLocation.lng
+      },
+      suggestedMarkerLocation: {
+        lat: markerLatLng.lat,
+        lng: markerLatLng.lng
+      }
+    });
+
+    alert("Thanks! Your marker suggestion has been submitted.");
+    resetSuggestionForm();
+  } catch (err) {
+    console.error("Failed to submit marker suggestion:", err);
+    alert("Unable to submit your suggestion right now. Please try again.");
+    submitSuggestedMarkerBtn.disabled = false;
+  }
+});
+
+cancelSuggestedMarkerBtn?.addEventListener("click", () => {
+  resetSuggestionForm();
+});
 
 // map.getContainer().addEventListener("click", function (e) {
 ["mousedown","touchstart","click"].forEach(evt => {
