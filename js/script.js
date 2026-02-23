@@ -380,6 +380,62 @@ function promptForManualCurrentLocation() {
   return { lat, lng };
 }
 
+function showLocationPermissionInstructions() {
+  alert(
+    "Location access is blocked. Please enable location permissions for this site in your browser settings, then try 'Suggest a Marker' again."
+  );
+}
+
+async function requestCurrentLocationForSuggestion() {
+  if (!navigator.geolocation) {
+    alert("Geolocation is not supported by this browser.");
+    return;
+  }
+
+  // Best-effort preflight check so we can give clearer UX before requesting location.
+  if (navigator.permissions?.query) {
+    try {
+      const permissionStatus = await navigator.permissions.query({ name: "geolocation" });
+      if (permissionStatus.state === "denied") {
+        showLocationPermissionInstructions();
+        return;
+      }
+    } catch (err) {
+      console.warn("Permissions API lookup failed; continuing with geolocation request.", err);
+    }
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      setSuggestionMarkerAtCurrentLocation(position);
+    },
+    (error) => {
+      console.error("Unable to get your location for marker suggestion:", error);
+
+      if (error?.code === error.PERMISSION_DENIED) {
+        showLocationPermissionInstructions();
+        return;
+      }
+
+      const useManualLocation = window.confirm(
+        "We couldn't access your current location right now. Click OK to enter your location manually and continue."
+      );
+
+      if (!useManualLocation) return;
+
+      const manualCurrentLocation = promptForManualCurrentLocation();
+      if (!manualCurrentLocation) return;
+
+      setSuggestionMarkerAtLatLng(manualCurrentLocation);
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+  );
+}
+
 resetSuggestionForm();
 
 // ==================================================
@@ -2075,30 +2131,7 @@ if (Array.isArray(marker.__cityLabels)) {
 document.getElementById('locate-btn').addEventListener('click', locateUser);
 
 suggestMarkerBtn?.addEventListener("click", () => {
-  if (!navigator.geolocation) {
-    alert("Geolocation is not supported by this browser.");
-    return;
-  }
-
-  navigator.geolocation.getCurrentPosition(
-    (position) => {
-      setSuggestionMarkerAtCurrentLocation(position);
-    },
-    (error) => {
-      console.error("Unable to get your location for marker suggestion:", error);
-
-      const useManualLocation = window.confirm(
-        "We couldn't access your current location. Click OK to enter your location manually and continue."
-      );
-
-      if (!useManualLocation) return;
-
-      const manualCurrentLocation = promptForManualCurrentLocation();
-      if (!manualCurrentLocation) return;
-
-      setSuggestionMarkerAtLatLng(manualCurrentLocation);
-    }
-  );
+  requestCurrentLocationForSuggestion();
 });
 
 confirmSuggestedMarkerBtn?.addEventListener("click", () => {
