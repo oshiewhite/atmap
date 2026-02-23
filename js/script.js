@@ -137,15 +137,27 @@ async function saveFeedback(payload) {
 
 async function saveMarkerSuggestion(payload) {
   const u = await ensureUserProfile();
-
-  const ref = await addDoc(collection(db, "markerSuggestions"), {
+  const suggestionDoc = {
     ...payload,
+    kind: "marker_suggestion",
     createdAt: serverTimestamp(),
     uid: u.uid,
     username: u.username
-  });
+  };
 
-  return ref;
+  try {
+    return await addDoc(collection(db, "markerSuggestions"), suggestionDoc);
+  } catch (err) {
+    const isPermissionDenied = err?.code === "permission-denied" || err?.code === "PERMISSION_DENIED";
+
+    if (!isPermissionDenied) throw err;
+
+    console.warn("markerSuggestions write denied by rules; falling back to feedback collection.", err);
+    return await addDoc(collection(db, "feedback"), {
+      ...suggestionDoc,
+      kind: "markerSuggestion"
+    });
+  }
 }
 document.getElementById("account-btn")?.addEventListener("click", async () => {
   // OPTIONAL: force sign-in before going to account page
@@ -378,6 +390,62 @@ function promptForManualCurrentLocation() {
   }
 
   return { lat, lng };
+}
+
+function showLocationPermissionInstructions() {
+  alert(
+    "Location access is blocked. Please enable location permissions for this site in your browser settings, then try 'Suggest a Marker' again."
+  );
+}
+
+async function requestCurrentLocationForSuggestion() {
+  if (!navigator.geolocation) {
+    alert("Geolocation is not supported by this browser.");
+    return;
+  }
+
+  // Best-effort preflight check so we can give clearer UX before requesting location.
+  if (navigator.permissions?.query) {
+    try {
+      const permissionStatus = await navigator.permissions.query({ name: "geolocation" });
+      if (permissionStatus.state === "denied") {
+        showLocationPermissionInstructions();
+        return;
+      }
+    } catch (err) {
+      console.warn("Permissions API lookup failed; continuing with geolocation request.", err);
+    }
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      setSuggestionMarkerAtCurrentLocation(position);
+    },
+    (error) => {
+      console.error("Unable to get your location for marker suggestion:", error);
+
+      if (error?.code === error.PERMISSION_DENIED) {
+        showLocationPermissionInstructions();
+        return;
+      }
+
+      const useManualLocation = window.confirm(
+        "We couldn't access your current location right now. Click OK to enter your location manually and continue."
+      );
+
+      if (!useManualLocation) return;
+
+      const manualCurrentLocation = promptForManualCurrentLocation();
+      if (!manualCurrentLocation) return;
+
+      setSuggestionMarkerAtLatLng(manualCurrentLocation);
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+  );
 }
 
 resetSuggestionForm();
@@ -2075,30 +2143,7 @@ if (Array.isArray(marker.__cityLabels)) {
 document.getElementById('locate-btn').addEventListener('click', locateUser);
 
 suggestMarkerBtn?.addEventListener("click", () => {
-  if (!navigator.geolocation) {
-    alert("Geolocation is not supported by this browser.");
-    return;
-  }
-
-  navigator.geolocation.getCurrentPosition(
-    (position) => {
-      setSuggestionMarkerAtCurrentLocation(position);
-    },
-    (error) => {
-      console.error("Unable to get your location for marker suggestion:", error);
-
-      const useManualLocation = window.confirm(
-        "We couldn't access your current location. Click OK to enter your location manually and continue."
-      );
-
-      if (!useManualLocation) return;
-
-      const manualCurrentLocation = promptForManualCurrentLocation();
-      if (!manualCurrentLocation) return;
-
-      setSuggestionMarkerAtLatLng(manualCurrentLocation);
-    }
-  );
+  requestCurrentLocationForSuggestion();
 });
 
 confirmSuggestedMarkerBtn?.addEventListener("click", () => {
@@ -2157,7 +2202,15 @@ submitSuggestedMarkerBtn?.addEventListener("click", async () => {
     resetSuggestionForm();
   } catch (err) {
     console.error("Failed to submit marker suggestion:", err);
-    alert("Unable to submit your suggestion right now. Please try again.");
+
+    const message =
+      err?.code === "permission-denied"
+        ? "We couldn't save your suggestion due to a database permissions setting. Please try again shortly."
+        : err?.message
+          ? `Unable to submit your suggestion right now: ${err.message}`
+          : "Unable to submit your suggestion right now. Please try again.";
+
+    alert(message);
     submitSuggestedMarkerBtn.disabled = false;
   }
 });
