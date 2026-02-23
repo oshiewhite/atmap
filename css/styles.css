@@ -337,6 +337,10 @@ body.sidebar-open #sidebar-tab{
   color: #333;
 }
 
+.suggest-loading[hidden] {
+  display: none;
+}
+
 .suggest-loading-spinner {
   width: 14px;
   height: 14px;
