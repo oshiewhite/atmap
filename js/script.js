@@ -284,56 +284,65 @@ const suggestionIcon = L.icon({
 });
 
 const suggestMarkerBtn = document.getElementById("suggest-marker-btn");
-const suggestMarkerFlow = document.getElementById("suggest-marker-flow");
-const suggestCurrentLocation = document.getElementById("suggest-current-location");
-const suggestMarkerLocation = document.getElementById("suggest-marker-location");
-const confirmSuggestedMarkerBtn = document.getElementById("confirm-suggested-marker-btn");
-const suggestMarkerTypeSelect = document.getElementById("suggest-marker-type");
-const submitSuggestedMarkerBtn = document.getElementById("submit-suggested-marker-btn");
-const cancelSuggestedMarkerBtn = document.getElementById("cancel-suggested-marker-btn");
 
 let suggestedDraftMarker = null;
 let suggestionCurrentLocation = null;
 let suggestionMarkerConfirmed = false;
+let suggestionMarkerType = "";
 
 function formatLatLng(latlng) {
   if (!latlng) return "—";
   return `${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}`;
 }
 
-function updateSuggestionLocationText() {
-  if (suggestCurrentLocation) {
-    suggestCurrentLocation.textContent = `Current location: ${formatLatLng(suggestionCurrentLocation)}`;
-  }
-
+function buildSuggestionPopupHtml() {
   const markerLatLng = suggestedDraftMarker ? suggestedDraftMarker.getLatLng() : null;
-  if (suggestMarkerLocation) {
-    suggestMarkerLocation.textContent = `Suggested marker: ${formatLatLng(markerLatLng)}`;
-  }
+  const submitDisabled = !suggestionMarkerConfirmed || !suggestionMarkerType;
+
+  return `
+    <div class="suggestion-popup">
+      <p class="suggest-copy">A marker will drop on your current location. Drag it to the exact spot and confirm.</p>
+      <p class="suggest-coords">Current location: ${formatLatLng(suggestionCurrentLocation)}</p>
+      <p class="suggest-coords">Suggested marker: ${formatLatLng(markerLatLng)}</p>
+
+      <button class="account-btn suggest-marker-confirm-btn" type="button">Confirm Marker Position</button>
+
+      <label for="suggest-marker-type-popup" class="suggest-label">Marker type</label>
+      <select id="suggest-marker-type-popup" class="suggest-select suggest-marker-type-select" ${suggestionMarkerConfirmed ? "" : "disabled"}>
+        <option value="">Select a type</option>
+        <option value="tentsite" ${suggestionMarkerType === "tentsite" ? "selected" : ""}>Tentsite</option>
+        <option value="water" ${suggestionMarkerType === "water" ? "selected" : ""}>Water</option>
+        <option value="business" ${suggestionMarkerType === "business" ? "selected" : ""}>Business</option>
+        <option value="other" ${suggestionMarkerType === "other" ? "selected" : ""}>Other</option>
+      </select>
+
+      <button class="account-btn suggest-marker-submit-btn" type="button" ${submitDisabled ? "disabled" : ""}>Submit Suggestion</button>
+      <button class="account-btn suggest-marker-cancel-btn" type="button">Cancel</button>
+    </div>
+  `;
+}
+
+function renderSuggestionPopup(openPopup = false) {
+  if (!suggestedDraftMarker) return;
+  suggestedDraftMarker.bindPopup(buildSuggestionPopupHtml(), { autoClose: false });
+  if (openPopup) suggestedDraftMarker.openPopup();
 }
 
 function resetSuggestionForm() {
   suggestionCurrentLocation = null;
   suggestionMarkerConfirmed = false;
+  suggestionMarkerType = "";
 
   if (suggestedDraftMarker && map.hasLayer(suggestedDraftMarker)) {
     map.removeLayer(suggestedDraftMarker);
   }
   suggestedDraftMarker = null;
-
-  if (suggestMarkerFlow) suggestMarkerFlow.classList.add("hidden");
-  if (suggestMarkerTypeSelect) {
-    suggestMarkerTypeSelect.value = "";
-    suggestMarkerTypeSelect.disabled = true;
-  }
-  if (submitSuggestedMarkerBtn) submitSuggestedMarkerBtn.disabled = true;
-  if (confirmSuggestedMarkerBtn) confirmSuggestedMarkerBtn.disabled = false;
-
-  updateSuggestionLocationText();
 }
 
 function setSuggestionMarkerAtLatLng(currentLatLng) {
   suggestionCurrentLocation = currentLatLng;
+  suggestionMarkerConfirmed = false;
+  suggestionMarkerType = "";
 
   if (suggestedDraftMarker && map.hasLayer(suggestedDraftMarker)) {
     map.removeLayer(suggestedDraftMarker);
@@ -344,26 +353,14 @@ function setSuggestionMarkerAtLatLng(currentLatLng) {
     icon: suggestionIcon
   }).addTo(map);
 
-  suggestedDraftMarker.bindPopup("Drag me to the exact marker location, then confirm in the sidebar.").openPopup();
+  renderSuggestionPopup(true);
 
   suggestedDraftMarker.on("dragend", () => {
     suggestionMarkerConfirmed = false;
-    if (suggestMarkerTypeSelect) suggestMarkerTypeSelect.disabled = true;
-    if (submitSuggestedMarkerBtn) submitSuggestedMarkerBtn.disabled = true;
-    updateSuggestionLocationText();
+    renderSuggestionPopup(true);
   });
 
   map.setView([currentLatLng.lat, currentLatLng.lng], 14);
-
-  if (suggestMarkerFlow) suggestMarkerFlow.classList.remove("hidden");
-  if (confirmSuggestedMarkerBtn) confirmSuggestedMarkerBtn.disabled = false;
-  if (suggestMarkerTypeSelect) {
-    suggestMarkerTypeSelect.value = "";
-    suggestMarkerTypeSelect.disabled = true;
-  }
-  if (submitSuggestedMarkerBtn) submitSuggestedMarkerBtn.disabled = true;
-
-  updateSuggestionLocationText();
 }
 
 function setSuggestionMarkerAtCurrentLocation(position) {
@@ -2146,77 +2143,79 @@ suggestMarkerBtn?.addEventListener("click", () => {
   requestCurrentLocationForSuggestion();
 });
 
-confirmSuggestedMarkerBtn?.addEventListener("click", () => {
-  if (!suggestedDraftMarker) {
-    alert("Start by clicking 'Suggest a Marker' first.");
+map.getContainer().addEventListener("click", async (e) => {
+  if (e.target.closest(".suggest-marker-confirm-btn")) {
+    if (!suggestedDraftMarker) {
+      alert("Start by clicking 'Suggest a Marker' first.");
+      return;
+    }
+
+    suggestionMarkerConfirmed = true;
+    renderSuggestionPopup(true);
     return;
   }
 
-  suggestionMarkerConfirmed = true;
-  if (suggestMarkerTypeSelect) suggestMarkerTypeSelect.disabled = false;
-  if (submitSuggestedMarkerBtn) {
-    submitSuggestedMarkerBtn.disabled = !suggestMarkerTypeSelect?.value;
-  }
-});
+  if (e.target.closest(".suggest-marker-submit-btn")) {
+    if (!suggestedDraftMarker || !suggestionCurrentLocation) {
+      alert("Please start a marker suggestion first.");
+      return;
+    }
 
-suggestMarkerTypeSelect?.addEventListener("change", () => {
-  if (!submitSuggestedMarkerBtn) return;
-  submitSuggestedMarkerBtn.disabled = !suggestionMarkerConfirmed || !suggestMarkerTypeSelect.value;
-});
+    if (!suggestionMarkerConfirmed) {
+      alert("Please confirm the marker position before submitting.");
+      return;
+    }
 
-submitSuggestedMarkerBtn?.addEventListener("click", async () => {
-  if (!suggestedDraftMarker || !suggestionCurrentLocation) {
-    alert("Please start a marker suggestion first.");
+    if (!suggestionMarkerType) {
+      alert("Please select a marker type.");
+      return;
+    }
+
+    const markerLatLng = suggestedDraftMarker.getLatLng();
+
+    try {
+      await saveMarkerSuggestion({
+        markerType: suggestionMarkerType,
+        currentLocation: {
+          lat: suggestionCurrentLocation.lat,
+          lng: suggestionCurrentLocation.lng
+        },
+        suggestedMarkerLocation: {
+          lat: markerLatLng.lat,
+          lng: markerLatLng.lng
+        }
+      });
+
+      alert("Thanks! Your marker suggestion has been submitted.");
+      resetSuggestionForm();
+    } catch (err) {
+      console.error("Failed to submit marker suggestion:", err);
+
+      const message =
+        err?.code === "permission-denied"
+          ? "We couldn't save your suggestion due to a database permissions setting. Please try again shortly."
+          : err?.message
+            ? `Unable to submit your suggestion right now: ${err.message}`
+            : "Unable to submit your suggestion right now. Please try again.";
+
+      alert(message);
+      renderSuggestionPopup(true);
+    }
+
     return;
   }
 
-  if (!suggestionMarkerConfirmed) {
-    alert("Please confirm the marker position before submitting.");
-    return;
-  }
-
-  const markerType = suggestMarkerTypeSelect?.value || "";
-  if (!markerType) {
-    alert("Please select a marker type.");
-    return;
-  }
-
-  const markerLatLng = suggestedDraftMarker.getLatLng();
-
-  try {
-    submitSuggestedMarkerBtn.disabled = true;
-
-    await saveMarkerSuggestion({
-      markerType,
-      currentLocation: {
-        lat: suggestionCurrentLocation.lat,
-        lng: suggestionCurrentLocation.lng
-      },
-      suggestedMarkerLocation: {
-        lat: markerLatLng.lat,
-        lng: markerLatLng.lng
-      }
-    });
-
-    alert("Thanks! Your marker suggestion has been submitted.");
+  if (e.target.closest(".suggest-marker-cancel-btn")) {
     resetSuggestionForm();
-  } catch (err) {
-    console.error("Failed to submit marker suggestion:", err);
-
-    const message =
-      err?.code === "permission-denied"
-        ? "We couldn't save your suggestion due to a database permissions setting. Please try again shortly."
-        : err?.message
-          ? `Unable to submit your suggestion right now: ${err.message}`
-          : "Unable to submit your suggestion right now. Please try again.";
-
-    alert(message);
-    submitSuggestedMarkerBtn.disabled = false;
   }
 });
 
-cancelSuggestedMarkerBtn?.addEventListener("click", () => {
-  resetSuggestionForm();
+map.getContainer().addEventListener("change", (e) => {
+  const typeSelect = e.target.closest(".suggest-marker-type-select");
+  if (!typeSelect) return;
+
+  suggestionMarkerType = typeSelect.value || "";
+  renderSuggestionPopup(true);
 });
 
 // map.getContainer().addEventListener("click", function (e) {
