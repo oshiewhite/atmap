@@ -1123,7 +1123,7 @@ var crossingIcon = L.icon({
 });
 var waterIcon = L.icon({
     iconUrl: 'icons/water.png',
-    iconSize: [62, 62],
+    iconSize: [32, 32],
     iconAnchor: [16, 32],
     popupAnchor: [0, -32]
 });
