@@ -107,7 +107,7 @@ async function loadAccount() {
 
     const kind = String(d.kind || "feedback").toLowerCase();
     const rating = d.rating ?? "";
-    const notes = (d.notes || "").trim();
+    const notes = ((d.notes ?? d.suggestionDetails) || "").trim();
     const when = formatDate(d.createdAt);
 
 let firstText = "";
@@ -138,6 +138,12 @@ if (kind === "water") {
   const pn = (d.placeName || "").trim();
   const pc = (d.placeCity || "").trim();
   firstText = pc ? `${pn} (${pc})` : pn;
+
+} else if (kind === "marker_suggestion" || kind === "markersuggestion") {
+  firstText = (
+    d.markerType ||
+    "Marker suggestion"
+  ).trim();
 
 } else {
   firstText = (d.name || d.city || d.key || "").trim();
