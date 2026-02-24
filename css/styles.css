@@ -482,3 +482,70 @@ body.sidebar-open #elevation-panel{
   opacity: 0.25;   /* optional: soften it to match your other dividers */
   margin: 8px 0;
 }
+
+.settings-panel {
+  margin-top: 10px;
+}
+
+.marker-name-label {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #111;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 2px 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.marker-name-label::before {
+  display: none;
+}
+
+body.dark-mode {
+  background: #121212;
+  color: #f0f0f0;
+}
+
+body.dark-mode #sidebar,
+body.dark-mode .sidebar-footer,
+body.dark-mode #sidebar-tab,
+body.dark-mode #city-name-display,
+body.dark-mode #clicked-coordinates,
+body.dark-mode #locate-btn,
+body.dark-mode #elevation-panel {
+  background: rgba(28, 28, 28, 0.95);
+  color: #f0f0f0;
+  border-color: #555;
+}
+
+body.dark-mode .checkbox-container,
+body.dark-mode .sidebar-footer {
+  border-color: #555;
+}
+
+body.dark-mode .account-btn,
+body.dark-mode #mile-range-go-btn,
+body.dark-mode #elevation-toggle,
+body.dark-mode .suggest-select,
+body.dark-mode .suggest-textarea {
+  background: #2b2b2b;
+  color: #f5f5f5;
+  border-color: #666;
+}
+
+body.dark-mode .account-btn:hover,
+body.dark-mode #elevation-toggle:hover {
+  background: #3a3a3a;
+}
+
+body.dark-mode #map,
+body.dark-mode .leaflet-tile-pane {
+  filter: brightness(0.75) contrast(1.2) saturate(0.8);
+}
+
+body.dark-mode .marker-name-label {
+  background: rgba(20, 20, 20, 0.92);
+  color: #f0f0f0;
+  border-color: #888;
+}

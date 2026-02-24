@@ -200,6 +200,68 @@ const L = window.L;
 // =======================
 const sidebar = document.getElementById("sidebar");
 const sidebarTab = document.getElementById("sidebar-tab");
+const themeToggleCheckbox = document.getElementById("theme-toggle-checkbox");
+const markerLabelsCheckbox = document.getElementById("marker-labels-checkbox");
+
+const THEME_STORAGE_KEY = "atmap-theme";
+const MARKER_LABELS_STORAGE_KEY = "atmap-show-marker-labels";
+
+let showMarkerLabels = localStorage.getItem(MARKER_LABELS_STORAGE_KEY) === "true";
+const labelManagedMarkers = new Set();
+
+function applyTheme(theme) {
+  document.body.classList.toggle("dark-mode", theme === "dark");
+  if (themeToggleCheckbox) {
+    themeToggleCheckbox.checked = theme === "dark";
+  }
+}
+
+function updateMarkerLabelsVisibility() {
+  labelManagedMarkers.forEach((marker) => {
+    if (!marker || !marker.__alwaysLabelText) return;
+
+    if (showMarkerLabels) {
+      marker.bindTooltip(marker.__alwaysLabelText, {
+        permanent: true,
+        direction: "top",
+        offset: [0, -26],
+        className: "marker-name-label"
+      });
+      if (marker._map) {
+        marker.openTooltip();
+      }
+    } else {
+      marker.unbindTooltip();
+    }
+  });
+
+  if (markerLabelsCheckbox) {
+    markerLabelsCheckbox.checked = showMarkerLabels;
+  }
+}
+
+function registerMarkerLabel(marker, labelText) {
+  if (!marker || !labelText) return;
+  marker.__alwaysLabelText = labelText;
+  labelManagedMarkers.add(marker);
+  updateMarkerLabelsVisibility();
+}
+
+const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+applyTheme(savedTheme === "dark" ? "dark" : "light");
+updateMarkerLabelsVisibility();
+
+themeToggleCheckbox?.addEventListener("change", () => {
+  const theme = themeToggleCheckbox.checked ? "dark" : "light";
+  localStorage.setItem(THEME_STORAGE_KEY, theme);
+  applyTheme(theme);
+});
+
+markerLabelsCheckbox?.addEventListener("change", () => {
+  showMarkerLabels = markerLabelsCheckbox.checked;
+  localStorage.setItem(MARKER_LABELS_STORAGE_KEY, String(showMarkerLabels));
+  updateMarkerLabelsVisibility();
+});
 
 function setSidebarOpen(isOpen){
   sidebar.classList.toggle("open", isOpen);
@@ -1533,6 +1595,7 @@ function loadAll() {
 			);
 
 		  roadcrossingClusterGroup.addLayer(crossingMarker);
+          registerMarkerLabel(crossingMarker, name);
 
 		  // ✅ index it for nearest-road lookups from Gaps
 		  ROAD_CROSSINGS.push({
@@ -1577,6 +1640,7 @@ function loadAll() {
 
 
             var waterMarker = L.marker([lat, lng], { icon: waterIcon }).bindPopup(waterPopup);
+            registerMarkerLabel(waterMarker, name);
 
             // index it so the popup click handler can find the marker later
             waterMarkerIndex[key] = waterMarker;
@@ -1592,27 +1656,30 @@ function loadAll() {
 			const safeMarkerType = escapeHtml(markertype);
 			const safeName = escapeHtml(name);
 
-			L.marker([lat, lng], { icon: shelterIcon })
+			const shelterMarker = L.marker([lat, lng], { icon: shelterIcon })
 			  .addTo(shelterLayerGroup)
 			  .bindPopup(`${safeMarkerType}<br>${safeName}<br>${lat.toFixed(6)},${lng.toFixed(6)}`);
+            registerMarkerLabel(shelterMarker, name);
 
           }
 		  if (markertype === "Peak"){
 			const safeMarkerType = escapeHtml(markertype);
 			const safeName = escapeHtml(name);
 
-			L.marker([lat, lng], { icon: peakIcon })
+			const peakMarker = L.marker([lat, lng], { icon: peakIcon })
 			  .addTo(peakLayerGroup)
 			  .bindPopup(`${safeName}<br>${lat.toFixed(6)},${lng.toFixed(6)}`);
+            registerMarkerLabel(peakMarker, name);
 
           }
 		  if (markertype === "Parking"){
 			const safeMarkerType = escapeHtml(markertype);
 			const safeName = escapeHtml(name);
 
-			L.marker([lat, lng], { icon: parkingIcon })
+			const parkingMarker = L.marker([lat, lng], { icon: parkingIcon })
 			  .addTo(parkingLayerGroup)
 			  .bindPopup(`${safeMarkerType}<br>${safeName}<br>${lat.toFixed(6)},${lng.toFixed(6)}`);
+            registerMarkerLabel(parkingMarker, name);
 
           }
 			if (markertype === "Gap") {
@@ -1628,9 +1695,10 @@ function loadAll() {
 					  data-gap-lng="${lngFixed}"
 					  style="margin-top:8px;"></div>`;
 
-			  L.marker([lat, lng], { icon: gapIcon })
+			  const gapMarker = L.marker([lat, lng], { icon: gapIcon })
 				.addTo(gapLayerGroup)
 				.bindPopup(gapPopup);
+              registerMarkerLabel(gapMarker, name);
 			}
 
 	  
@@ -1709,6 +1777,7 @@ if (sharedKey !== "") {
 
 
             // index for rating popup
+            registerMarkerLabel(marker, name);
             resupplyMarkerIndex[resKey] = marker;
 
 			// NEW: build label marker but DO NOT add it yet (only show in city mode)
@@ -1840,7 +1909,8 @@ const popupHtml =
 			.addTo(resupplyLayerGroup)
 			.bindPopup(popupHtml, { autoClose: false });
 
-		  resupplyMarkerIndex[resKey] = marker;
+		  registerMarkerLabel(marker, entries[0]?.name || "Resupply");
+          resupplyMarkerIndex[resKey] = marker;
 		  marker.__cityLabels = entries
   .map(e => {
     const llLat = Number.isFinite(e.labelLat) ? e.labelLat : e.lat;
@@ -3171,6 +3241,7 @@ const placeKey = `${lat.toFixed(6)},${lng.toFixed(6)}|${type}|${cityKey}|${cityD
 		  `<a href="#" class="place-rate-link" data-place-key="${safeKey}">Rate this place</a>`;
 
 		const marker = L.marker([lat, lng], { icon }).bindPopup(popup);
+        registerMarkerLabel(marker, name);
 		// Remove Leaflet's default "click opens popup" (this is what simulated clicks trigger)
 marker.off("click", marker._openPopup, marker);
 
