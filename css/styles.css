@@ -7,6 +7,19 @@ html, body {
   padding: 0;
 }
 
+/* Prevent iOS Safari auto-zoom on focused form controls in the PWA */
+input[type="text"],
+input[type="number"],
+input[type="search"],
+input[type="email"],
+input[type="tel"],
+input[type="url"],
+input[type="password"],
+textarea,
+select {
+  font-size: 16px;
+}
+
 /* Relative container for map and overlays */
 #atmhtml-section {
   position: relative; /* Establishes a new positioning context */
