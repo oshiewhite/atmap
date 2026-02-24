@@ -81,6 +81,20 @@
       <h1>Sign in required</h1>
       <p id="auth-gate-message">Please sign in with Google to view the map.</p>
       <button id="auth-gate-login-btn" class="account-btn" type="button">Sign in with Google</button>
+      <form id="auth-gate-profile-form" class="auth-gate-form" hidden>
+        <label for="auth-gate-username">Choose a username</label>
+        <input id="auth-gate-username" name="username" type="text" minlength="3" maxlength="32" pattern="[a-zA-Z0-9_-]+" required />
+        <label class="auth-gate-checkbox-label">
+          <input id="auth-gate-map-updates" name="mapUpdates" type="checkbox" />
+          Send me map update announcements.
+        </label>
+        <label class="auth-gate-checkbox-label">
+          <input id="auth-gate-marketing-consent" name="marketingConsent" type="checkbox" />
+          I agree to receive marketing emails.
+        </label>
+        <div id="auth-gate-profile-error" class="auth-gate-error" aria-live="polite"></div>
+        <button id="auth-gate-profile-submit" class="account-btn" type="submit">Continue</button>
+      </form>
     </div>
   </div>
 

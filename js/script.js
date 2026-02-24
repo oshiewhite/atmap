@@ -51,7 +51,6 @@ async function initializeFirebase() {
 async function ensureUserProfile() {
   const {
     signInWithPopup,
-    signOut,
     doc,
     getDoc,
     setDoc,
@@ -69,57 +68,51 @@ async function ensureUserProfile() {
 
   const u = auth.currentUser;
   const userRef = doc(db, "users", u.uid);
-let snap;
-try {
-  snap = await getDoc(userRef);
-} catch (err) {
-  console.error("FAILED getDoc(users/{uid})", err);
-  throw err;
-}
+  let snap;
 
-
-  // If username doesn't exist yet, force them to create it
-  if (!snap.exists() || !snap.data()?.username) {
-    let username = "";
-
-    while (true) {
-      username = (window.prompt("Please create a username.") || "").trim();
-
-      // cancel/blank = not allowed
-      if (!username) {
-        await signOut(auth);
-        throw new Error("Username required. Please sign in again and create a username.");
-      }
-
-      if (username.length < 3) continue;
-      if (!/^[a-zA-Z0-9_-]+$/.test(username)) continue;
-
-      break;
-    }
-
-try {
-  await setDoc(userRef, {
-    uid: u.uid,
-    username,
-    email: u.email || "",
-    displayName: u.displayName || "",
-    photoURL: u.photoURL || "",
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
-  }, { merge: true });
-} catch (err) {
-  console.error("FAILED setDoc(users/{uid})", err);
-  throw err;
-}
-
-
-    return { uid: u.uid, username, email: u.email || "" };
+  try {
+    snap = await getDoc(userRef);
+  } catch (err) {
+    console.error("FAILED getDoc(users/{uid})", err);
+    throw err;
   }
 
-  // Existing user: reuse
+  const existingData = snap.exists() ? snap.data() : {};
+
+  if (!existingData?.username) {
+    const profileDetails = await promptForProfileDetails(existingData);
+
+    try {
+      await setDoc(userRef, {
+        uid: u.uid,
+        username: profileDetails.username,
+        email: u.email || "",
+        displayName: u.displayName || "",
+        photoURL: u.photoURL || "",
+        receiveMapUpdates: profileDetails.receiveMapUpdates,
+        marketingEmailsOptIn: profileDetails.marketingEmailsOptIn,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    } catch (err) {
+      console.error("FAILED setDoc(users/{uid})", err);
+      throw err;
+    }
+
+    return { uid: u.uid, username: profileDetails.username, email: u.email || "" };
+  }
+
+  if (typeof existingData.receiveMapUpdates === "undefined" || typeof existingData.marketingEmailsOptIn === "undefined") {
+    await setDoc(userRef, {
+      receiveMapUpdates: existingData.receiveMapUpdates === true,
+      marketingEmailsOptIn: existingData.marketingEmailsOptIn === true,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+  }
+
   return {
     uid: u.uid,
-    username: snap.data().username,
+    username: existingData.username,
     email: u.email || ""
   };
 }
@@ -192,11 +185,71 @@ document.getElementById("account-btn")?.addEventListener("click", async () => {
 const authGate = document.getElementById("auth-gate");
 const authGateMessage = document.getElementById("auth-gate-message");
 const authGateLoginBtn = document.getElementById("auth-gate-login-btn");
+const authGateProfileForm = document.getElementById("auth-gate-profile-form");
+const authGateUsernameInput = document.getElementById("auth-gate-username");
+const authGateMapUpdatesCheckbox = document.getElementById("auth-gate-map-updates");
+const authGateMarketingConsentCheckbox = document.getElementById("auth-gate-marketing-consent");
+const authGateProfileError = document.getElementById("auth-gate-profile-error");
+const authGateProfileSubmit = document.getElementById("auth-gate-profile-submit");
 
 function setMapLocked(locked, message = "") {
   document.body.classList.toggle("map-locked", locked);
   if (authGate) authGate.hidden = !locked;
   if (message && authGateMessage) authGateMessage.textContent = message;
+}
+
+function setAuthGateMode(mode, message = "") {
+  if (authGateMessage && message) authGateMessage.textContent = message;
+  if (authGateLoginBtn) authGateLoginBtn.hidden = mode !== "signin";
+  if (authGateProfileForm) authGateProfileForm.hidden = mode !== "profile";
+  if (authGateProfileError) authGateProfileError.textContent = "";
+}
+
+function promptForProfileDetails(existingProfile = {}) {
+  return new Promise((resolve, reject) => {
+    if (!authGateProfileForm || !authGateUsernameInput) {
+      reject(new Error("Profile form is unavailable."));
+      return;
+    }
+
+    setMapLocked(true, "Finish creating your account to continue.");
+    setAuthGateMode("profile", "Finish creating your account to continue.");
+
+    authGateUsernameInput.value = existingProfile.username || "";
+    if (authGateMapUpdatesCheckbox) {
+      authGateMapUpdatesCheckbox.checked = existingProfile.receiveMapUpdates === true;
+    }
+    if (authGateMarketingConsentCheckbox) {
+      authGateMarketingConsentCheckbox.checked = existingProfile.marketingEmailsOptIn === true;
+    }
+
+    const handleSubmit = (event) => {
+      event.preventDefault();
+      const username = authGateUsernameInput.value.trim();
+
+      if (username.length < 3 || !/^[a-zA-Z0-9_-]+$/.test(username)) {
+        if (authGateProfileError) {
+          authGateProfileError.textContent = "Username must be at least 3 characters and use only letters, numbers, underscores, or hyphens.";
+        }
+        return;
+      }
+
+      cleanup();
+      resolve({
+        username,
+        receiveMapUpdates: Boolean(authGateMapUpdatesCheckbox?.checked),
+        marketingEmailsOptIn: Boolean(authGateMarketingConsentCheckbox?.checked)
+      });
+    };
+
+    const cleanup = () => {
+      authGateProfileForm.removeEventListener("submit", handleSubmit);
+      if (authGateProfileSubmit) authGateProfileSubmit.disabled = false;
+    };
+
+    authGateProfileForm.addEventListener("submit", handleSubmit);
+    authGateUsernameInput.focus();
+  });
 }
 
 async function requireMapSignIn({ prompt = false } = {}) {
@@ -210,25 +263,31 @@ async function requireMapSignIn({ prompt = false } = {}) {
   });
 
   if (existingUser) {
+    await ensureUserProfile();
     setMapLocked(false);
     return true;
   }
 
   if (!prompt) {
+    setAuthGateMode("signin", "Please sign in with Google to view the map.");
     setMapLocked(true, "Please sign in with Google to view the map.");
     return false;
   }
 
   try {
     await signInWithPopup(auth, googleProvider);
+    await ensureUserProfile();
     setMapLocked(false);
     return true;
   } catch (err) {
     console.error("Map sign-in failed:", err);
+    setAuthGateMode("signin", "Sign-in was cancelled or failed. Please sign in to view the map.");
     setMapLocked(true, "Sign-in was cancelled or failed. Please sign in to view the map.");
     return false;
   }
 }
+
+setAuthGateMode("signin", "Please sign in with Google to view the map.");
 
 if (authGateLoginBtn) {
   authGateLoginBtn.addEventListener("click", async () => {
