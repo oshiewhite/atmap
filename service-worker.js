@@ -1,20 +1,30 @@
 // service-worker.js
 
 // A version name that you can update when you change the cache contents.
-const CACHE_NAME = 'app-cache-v2';
+const CACHE_NAME = 'app-cache-v3';
+
+// Numbered GeoJSON segments available in data/*.geojson.
+const MAX_NUMBERED_GEOJSON = 350;
 
 // List all local files to cache for offline mode.
 const OFFLINE_ASSETS = [
   'index.html',
+  'account.html',
+  'manifest.json',
   'css/styles.css',
   'js/script.js',
+  'js/firebase.js',
+  'js/account.js',
 
-  // Data files (GeoJSON/CSV)
+  // Data files (GeoJSON/CSV/KML/GPX bundle)
   'data/at.geojson',
+  'data/at.kml',
+  'data/at_full_gpx.zip',
   'data/mile_markers.csv',
   'data/resources.csv',
   'data/resupply.csv',
   'data/places.csv',
+  'data/trail_points.csv',
 
   // Icons and image assets used by markers and the UI.
   'icons/resupply_marker.png',
@@ -48,73 +58,96 @@ const OFFLINE_ASSETS = [
   'libs/leaflet/images/marker-shadow.png'
 ];
 
-// Installation: Open the cache and add all the assets, plus geojson 1–100 if they exist.
-self.addEventListener('install', event => {
-  console.log('[Service Worker] Install event');
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(async cache => {
-      console.log('[Service Worker] Caching core offline assets');
-      // 1) Cache the core assets
-      await cache.addAll(OFFLINE_ASSETS);
+function getNumberedGeojsonUrls() {
+  return Array.from({ length: MAX_NUMBERED_GEOJSON }, (_, i) => `data/${i + 1}.geojson`);
+}
 
-      // 2) Attempt to cache data/1.geojson … data/100.geojson, but skip any that 404
-      const geojsonUrls = Array.from({ length: 100 }, (_, i) => `data/${i + 1}.geojson`);
-      await Promise.all(
-        geojsonUrls.map(url =>
-          fetch(url)
-            .then(response => {
-              if (response.ok) {
-                console.log(`[Service Worker] Caching ${url}`);
-                return cache.put(url, response);
-              }
-              // If not OK (404), just skip
-            })
-            .catch(err => {
-              // Network or other error—skip this file
-              console.warn(`[Service Worker] Failed to fetch ${url}:`, err);
-            })
-        )
-      );
+async function cacheOptionalAssets(cache, urls) {
+  await Promise.all(
+    urls.map(async url => {
+      try {
+        const response = await fetch(url);
+        if (response.ok) {
+          await cache.put(url, response);
+        }
+      } catch (err) {
+        console.warn(`[Service Worker] Failed to fetch optional asset ${url}:`, err);
+      }
     })
   );
+}
+
+// Installation: Open cache and add all core assets, then attempt numbered trail segments.
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(async cache => {
+      await cache.addAll(OFFLINE_ASSETS);
+      await cacheOptionalAssets(cache, getNumberedGeojsonUrls());
+    })
+  );
+
   // Activate this worker immediately, without waiting for old versions to unload
   self.skipWaiting();
 });
 
 // Activation: Clean up old caches.
 self.addEventListener('activate', event => {
-  console.log('[Service Worker] Activate event');
   event.waitUntil(
     caches.keys().then(cacheNames =>
       Promise.all(
         cacheNames.map(name => {
           if (name !== CACHE_NAME) {
-            console.log('[Service Worker] Deleting old cache:', name);
             return caches.delete(name);
           }
         })
       )
     )
   );
+
   // Take control of uncontrolled clients (pages) immediately
   self.clients.claim();
 });
 
-// Fetch: Serve cached assets if available, else fetch from network.
+function isSameOrigin(requestUrl) {
+  return new URL(requestUrl).origin === self.location.origin;
+}
+
+function isCacheableDataRequest(request) {
+  if (request.method !== 'GET') {
+    return false;
+  }
+
+  const url = new URL(request.url);
+  return isSameOrigin(request.url) && url.pathname.startsWith('/data/');
+}
+
+// Fetch: Serve cached assets when possible. Network responses for local data are cached for offline.
 self.addEventListener('fetch', event => {
-  console.log('[Service Worker] Fetching:', event.request.url);
+  const request = event.request;
+
   event.respondWith(
-    caches.match(event.request, { ignoreSearch: true }).then(cachedResponse => {
+    caches.match(request, { ignoreSearch: true }).then(async cachedResponse => {
       if (cachedResponse) {
         return cachedResponse;
       }
-      return fetch(event.request).then(networkResponse => {
-        // Optionally, you could cache new network responses here.
-        return networkResponse;
-      });
-    }).catch(() => {
-      // Optionally, return a fallback resource for failed requests, e.g. offline page
-      // return caches.match('/offline.html');
+
+      const networkResponse = await fetch(request);
+
+      if (networkResponse && networkResponse.ok && (isCacheableDataRequest(request) || isSameOrigin(request.url))) {
+        const cache = await caches.open(CACHE_NAME);
+        cache.put(request, networkResponse.clone());
+      }
+
+      return networkResponse;
+    }).catch(async () => {
+      if (request.mode === 'navigate') {
+        const fallbackPage = await caches.match('index.html');
+        if (fallbackPage) {
+          return fallbackPage;
+        }
+      }
+
+      return new Response('Offline and resource not cached.', { status: 503, statusText: 'Service Unavailable' });
     })
   );
 });
