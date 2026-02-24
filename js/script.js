@@ -224,28 +224,6 @@ sidebarTab.addEventListener("click", () => {
 });
 
 
-// Get reference to the toggle button
-const toggleButton = document.getElementById('toggle-leaflet');
-
-// Function to update button text based on mode
-function updateToggleButtonText() {
-  const manualOfflineMode = localStorage.getItem('offlineMode') === 'true';
-  const runtimeOfflineMode = window.ATMAP_RUNTIME_OFFLINE === true;
-  toggleButton.innerText = (manualOfflineMode || runtimeOfflineMode)
-    ? 'Switch to Online Mode'
-    : 'Switch to Offline Mode';
-}
-
-// Update text on initial load
-updateToggleButtonText();
-
-// Add event listener to toggle mode and update the display
-toggleButton.addEventListener('click', function(){
-  const offlineMode = localStorage.getItem('offlineMode') === 'true';
-  localStorage.setItem('offlineMode', (!offlineMode).toString());
-  // Reload page to reinitialize with new library references
-  location.reload();
-});
 function wireResupplySubmenus() {
   const sections = document.querySelectorAll('#sidebar .menu-section[data-collapsible]');
 
@@ -1194,6 +1172,8 @@ var waterIcon = L.icon({
 // Cluster Groups
 // =======================
 var waterClusterGroup = L.markerClusterGroup({
+    maxClusterRadius: 35,
+    disableClusteringAtZoom: 13,
     iconCreateFunction: function(cluster) {
 
         return L.divIcon({
