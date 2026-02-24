@@ -193,14 +193,21 @@ function setMapLocked(locked, message = "") {
 }
 
 function setAuthGateMode(mode, message = "") {
+  const canShowProfileForm = mode === "profile" && Boolean(auth?.currentUser);
+
   if (authGateMessage && message) authGateMessage.textContent = message;
-  if (authGateLoginBtn) authGateLoginBtn.hidden = mode !== "signin";
-  if (authGateProfileForm) authGateProfileForm.hidden = mode !== "profile";
+  if (authGateLoginBtn) authGateLoginBtn.hidden = canShowProfileForm;
+  if (authGateProfileForm) authGateProfileForm.hidden = !canShowProfileForm;
   if (authGateProfileError) authGateProfileError.textContent = "";
 }
 
 function promptForProfileDetails(existingProfile = {}) {
   return new Promise((resolve, reject) => {
+    if (!auth?.currentUser) {
+      reject(new Error("Sign in with Google before completing your profile."));
+      return;
+    }
+
     if (!authGateProfileForm || !authGateUsernameInput) {
       reject(new Error("Profile form is unavailable."));
       return;
