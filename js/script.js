@@ -2933,10 +2933,10 @@ console.log("[UI] WATER submit clicked", pendingWaterFeedback);
 });
 
 function updateMapBasedOnMileMarkers() {
-    var inputValue1 = parseInt(document.getElementById('number-input-1').value);
-    var inputValue2 = parseInt(document.getElementById('number-input-2').value);
+    var inputValue1 = parseInt(document.getElementById('number-input-1').value, 10);
+    var inputValue2 = parseInt(document.getElementById('number-input-2').value, 10);
 
-    if (inputValue1 > inputValue2) return;
+    if (!Number.isInteger(inputValue1) || !Number.isInteger(inputValue2) || inputValue1 > inputValue2) return;
 
     var marker1 = mileMarkers.find(marker => marker.mile === inputValue1);
     var marker2 = mileMarkers.find(marker => marker.mile === inputValue2);
@@ -2953,8 +2953,8 @@ function updateMapBasedOnMileMarkers() {
         map.setView([marker1.lat, marker1.lng], 13);
     }
 }
-document.getElementById('number-input-1').addEventListener('input', updateMapBasedOnMileMarkers);
-document.getElementById('number-input-2').addEventListener('input', updateMapBasedOnMileMarkers);
+
+document.getElementById('mile-range-go-btn').addEventListener('click', updateMapBasedOnMileMarkers);
 
 document.getElementById('shelter-checkbox').addEventListener('change', function() {
     if (this.checked) {
