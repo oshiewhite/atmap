@@ -189,10 +189,33 @@ const authGateMarketingConsentCheckbox = document.getElementById("auth-gate-mark
 const authGateProfileError = document.getElementById("auth-gate-profile-error");
 const authGateProfileSubmit = document.getElementById("auth-gate-profile-submit");
 
+function syncElevationPanelForAuthGate(locked) {
+  const panel = document.getElementById("elevation-panel");
+  const btn = document.getElementById("elevation-toggle");
+  if (!panel || !btn) return;
+
+  if (locked) {
+    if (!panel.classList.contains("is-collapsed")) {
+      panel.dataset.authForcedCollapsed = "true";
+      panel.classList.add("is-collapsed");
+    }
+  } else if (panel.dataset.authForcedCollapsed === "true") {
+    panel.classList.remove("is-collapsed");
+    delete panel.dataset.authForcedCollapsed;
+    scheduleElevationUpdate();
+  }
+
+  const collapsed = panel.classList.contains("is-collapsed");
+  btn.setAttribute("aria-expanded", String(!collapsed));
+  btn.title = collapsed ? "Show elevation" : "Minimize elevation";
+  btn.textContent = collapsed ? "▴" : "▾";
+}
+
 function setMapLocked(locked, message = "") {
   document.body.classList.toggle("map-locked", locked);
   if (authGate) authGate.hidden = !locked;
   if (message && authGateMessage) authGateMessage.textContent = message;
+  syncElevationPanelForAuthGate(locked);
 }
 
 function showAuthScreen(mode) {

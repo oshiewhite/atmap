@@ -563,6 +563,11 @@ body.sidebar-open #elevation-panel{
   display: none;
 }
 
+.mile-marker div {
+  color: #111;
+  font-weight: 700;
+}
+
 body.dark-mode {
   background: #121212;
   color: #f0f0f0;
@@ -609,4 +614,8 @@ body.dark-mode .marker-name-label {
   background: rgba(20, 20, 20, 0.92);
   color: #f0f0f0;
   border-color: #888;
+}
+
+body.dark-mode .mile-marker div {
+  color: #000;
 }
