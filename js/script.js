@@ -35,6 +35,7 @@ async function initializeFirebase() {
   firebaseFns = {
     signInWithPopup: authMod.signInWithPopup,
     signOut: authMod.signOut,
+    onAuthStateChanged: authMod.onAuthStateChanged,
     collection: firestoreMod.collection,
     addDoc: firestoreMod.addDoc,
     serverTimestamp: firestoreMod.serverTimestamp,
@@ -62,7 +63,6 @@ async function ensureUserProfile() {
       await signInWithPopup(auth, googleProvider);
     } catch (err) {
       console.error("Google sign-in failed:", err);
-      alert(`Google sign-in failed: ${err?.code || ""}\n${err?.message || err}`);
       throw err;
     }
   }
@@ -187,6 +187,58 @@ document.getElementById("account-btn")?.addEventListener("click", async () => {
   }
 });
 
+
+
+const authGate = document.getElementById("auth-gate");
+const authGateMessage = document.getElementById("auth-gate-message");
+const authGateLoginBtn = document.getElementById("auth-gate-login-btn");
+
+function setMapLocked(locked, message = "") {
+  document.body.classList.toggle("map-locked", locked);
+  if (authGate) authGate.hidden = !locked;
+  if (message && authGateMessage) authGateMessage.textContent = message;
+}
+
+async function requireMapSignIn({ prompt = false } = {}) {
+  const { onAuthStateChanged, signInWithPopup } = await initializeFirebase();
+
+  const existingUser = await new Promise((resolve) => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      unsub();
+      resolve(user);
+    });
+  });
+
+  if (existingUser) {
+    setMapLocked(false);
+    return true;
+  }
+
+  if (!prompt) {
+    setMapLocked(true, "Please sign in with Google to view the map.");
+    return false;
+  }
+
+  try {
+    await signInWithPopup(auth, googleProvider);
+    setMapLocked(false);
+    return true;
+  } catch (err) {
+    console.error("Map sign-in failed:", err);
+    setMapLocked(true, "Sign-in was cancelled or failed. Please sign in to view the map.");
+    return false;
+  }
+}
+
+if (authGateLoginBtn) {
+  authGateLoginBtn.addEventListener("click", async () => {
+    authGateLoginBtn.disabled = true;
+    const ok = await requireMapSignIn({ prompt: true });
+    if (!ok) authGateLoginBtn.disabled = false;
+  });
+}
+
+await requireMapSignIn({ prompt: true });
 
 const L = window.L;
 
