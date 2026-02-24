@@ -22,7 +22,11 @@
     }
 
     // Load libs from local (offline) or CDN (online)
-    const offlineMode = localStorage.getItem('offlineMode') === 'true';
+    // iOS PWAs may report stale connectivity on launch, so manual toggle still wins.
+    const manualOfflineMode = localStorage.getItem('offlineMode') === 'true';
+    const autoOfflineMode = !navigator.onLine;
+    const offlineMode = manualOfflineMode || autoOfflineMode;
+    window.ATMAP_RUNTIME_OFFLINE = offlineMode;
 
     if (offlineMode) {
       // Offline library references
@@ -381,6 +385,6 @@
   <script src="https://unpkg.com/@turf/turf/turf.min.js"></script>
 
   <!-- Your map logic -->
-  <script type="module" src="js/script.js?v=2026-01-16-1"></script>
+  <script type="module" src="js/script.js"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 // service-worker.js
 
 // A version name that you can update when you change the cache contents.
-const CACHE_NAME = 'app-cache-v1';
+const CACHE_NAME = 'app-cache-v2';
 
 // List all local files to cache for offline mode.
 const OFFLINE_ASSETS = [
@@ -39,8 +39,12 @@ const OFFLINE_ASSETS = [
   'libs/awesomplete-gh-pages/awesomplete.min.js',
   'libs/leaflet/leaflet.markercluster/dist/MarkerCluster.css',
   'libs/leaflet/leaflet.markercluster/dist/MarkerCluster.Default.css',
-  'libs/leaflet/leaflet.markercluster/dist/leaflet.markercluster.js'
-  'libs/leaflet/images/marker-icon.png'
+  'libs/leaflet/leaflet.markercluster/dist/leaflet.markercluster.js',
+  'libs/leaflet-gpx/gpx.js',
+  'libs/togeojson.umd.js',
+  'libs/oms.min.js',
+  'libs/leaflet/images/marker-icon.png',
+  'libs/leaflet/images/marker-icon-2x.png',
   'libs/leaflet/images/marker-shadow.png'
 ];
 
@@ -100,7 +104,7 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   console.log('[Service Worker] Fetching:', event.request.url);
   event.respondWith(
-    caches.match(event.request).then(cachedResponse => {
+    caches.match(event.request, { ignoreSearch: true }).then(cachedResponse => {
       if (cachedResponse) {
         return cachedResponse;
       }
