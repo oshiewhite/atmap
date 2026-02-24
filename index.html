@@ -77,11 +77,15 @@
 
 <body class="map-locked">
   <div id="auth-gate" class="auth-gate" role="dialog" aria-live="polite" aria-modal="true">
-    <div class="auth-gate-card">
+    <div id="auth-gate-signin-card" class="auth-gate-card">
       <h1>Sign in required</h1>
       <p id="auth-gate-message">Please sign in with Google to view the map.</p>
       <button id="auth-gate-login-btn" class="account-btn" type="button">Sign in with Google</button>
-      <form id="auth-gate-profile-form" class="auth-gate-form" hidden>
+    </div>
+    <div id="auth-gate-profile-card" class="auth-gate-card" hidden>
+      <h1>Finish creating your account</h1>
+      <p id="auth-gate-profile-message">Choose a username and preferences to continue.</p>
+      <form id="auth-gate-profile-form" class="auth-gate-form">
         <label for="auth-gate-username">Choose a username</label>
         <input id="auth-gate-username" name="username" type="text" minlength="3" maxlength="32" pattern="[a-zA-Z0-9_-]+" required />
         <label class="auth-gate-checkbox-label">

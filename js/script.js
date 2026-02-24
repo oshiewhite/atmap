@@ -177,7 +177,10 @@ document.getElementById("account-btn")?.addEventListener("click", async () => {
 
 
 const authGate = document.getElementById("auth-gate");
+const authGateSignInCard = document.getElementById("auth-gate-signin-card");
+const authGateProfileCard = document.getElementById("auth-gate-profile-card");
 const authGateMessage = document.getElementById("auth-gate-message");
+const authGateProfileMessage = document.getElementById("auth-gate-profile-message");
 const authGateLoginBtn = document.getElementById("auth-gate-login-btn");
 const authGateProfileForm = document.getElementById("auth-gate-profile-form");
 const authGateUsernameInput = document.getElementById("auth-gate-username");
@@ -192,12 +195,19 @@ function setMapLocked(locked, message = "") {
   if (message && authGateMessage) authGateMessage.textContent = message;
 }
 
-function setAuthGateMode(mode, message = "") {
-  const canShowProfileForm = mode === "profile" && Boolean(auth?.currentUser);
+function showAuthScreen(mode) {
+  const showProfile = mode === "profile" && Boolean(auth?.currentUser);
+  if (authGateSignInCard) authGateSignInCard.hidden = showProfile;
+  if (authGateProfileCard) authGateProfileCard.hidden = !showProfile;
+}
 
-  if (authGateMessage && message) authGateMessage.textContent = message;
-  if (authGateLoginBtn) authGateLoginBtn.hidden = canShowProfileForm;
-  if (authGateProfileForm) authGateProfileForm.hidden = !canShowProfileForm;
+function setAuthGateMode(mode, message = "") {
+  showAuthScreen(mode);
+  if (mode === "profile") {
+    if (authGateProfileMessage && message) authGateProfileMessage.textContent = message;
+  } else if (authGateMessage && message) {
+    authGateMessage.textContent = message;
+  }
   if (authGateProfileError) authGateProfileError.textContent = "";
 }
 
