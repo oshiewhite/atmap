@@ -832,6 +832,12 @@ function initElevationChartInteractions() {
     ctx.restore();
   }
 
+  function swallowTouchEvent(e) {
+    // Prevent touch gestures on the elevation chart from bubbling into map/sidebar gestures.
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
   function zoomMapToMileRange(m1, m2) {
     if (!Number.isFinite(m1) || !Number.isFinite(m2)) return;
 
@@ -884,24 +890,27 @@ function initElevationChartInteractions() {
   canvas.addEventListener("touchstart", (e) => {
     const t = e.touches[0];
     if (!t) return;
+    swallowTouchEvent(e);
     dragging = true;
     const rect = canvas.getBoundingClientRect();
     startX = t.clientX - rect.left;
     lastX = startX;
     drawSelectionOverlay(startX, lastX);
-  }, { passive: true });
+  }, { passive: false });
 
   canvas.addEventListener("touchmove", (e) => {
     if (!dragging) return;
     const t = e.touches[0];
     if (!t) return;
+    swallowTouchEvent(e);
     const rect = canvas.getBoundingClientRect();
     lastX = t.clientX - rect.left;
     drawSelectionOverlay(startX, lastX);
-  }, { passive: true });
+  }, { passive: false });
 
-  canvas.addEventListener("touchend", () => {
+  canvas.addEventListener("touchend", (e) => {
     if (!dragging) return;
+    swallowTouchEvent(e);
     dragging = false;
 
     const m1 = xToMile(startX);
@@ -910,6 +919,13 @@ function initElevationChartInteractions() {
     drawElevationProfile(ELEV_DRAW.points);
     zoomMapToMileRange(m1, m2);
   });
+
+  canvas.addEventListener("touchcancel", (e) => {
+    if (!dragging) return;
+    swallowTouchEvent(e);
+    dragging = false;
+    drawElevationProfile(ELEV_DRAW.points);
+  }, { passive: false });
 
   // Double click: reset (just redraw based on current map bounds)
   canvas.addEventListener("dblclick", () => {
