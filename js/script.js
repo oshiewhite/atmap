@@ -50,7 +50,6 @@ async function initializeFirebase() {
 // Ensure signed-in user has a profile doc w/ username (REQUIRED)
 async function ensureUserProfile() {
   const {
-    signInWithPopup,
     doc,
     getDoc,
     setDoc,
@@ -58,12 +57,7 @@ async function ensureUserProfile() {
   } = await initializeFirebase();
 
   if (!auth.currentUser) {
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (err) {
-      console.error("Google sign-in failed:", err);
-      throw err;
-    }
+    throw new Error("Sign in with Google before creating a profile.");
   }
 
   const u = auth.currentUser;
@@ -171,9 +165,9 @@ async function saveMarkerSuggestion(payload) {
   }
 }
 document.getElementById("account-btn")?.addEventListener("click", async () => {
-  // OPTIONAL: force sign-in before going to account page
   try {
-    await ensureUserProfile();
+    const hasAccess = await requireMapSignIn({ prompt: true });
+    if (!hasAccess) return;
     window.location.href = "account.html";
   } catch (e) {
     console.error(e);
