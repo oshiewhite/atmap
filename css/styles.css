@@ -203,30 +203,6 @@ select {
 #feedback-container button:hover {
   background-color: #103B10;
 }
-#toggle-container {
-  position: absolute;
-  bottom: 20px; /* Adjust as needed */
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1500;
-}
-
-/* Toggle Button Styling */
-#toggle-leaflet {
-  padding: 10px 15px;
-  background-color: #fff;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  cursor: pointer;
-  font-weight: bold;
-  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
-  transition: background-color 0.3s;
-}
-
-#toggle-leaflet:hover {
-  background-color: #f0f0f0;
-}					 
-
 /* Hidden by default */
 .sub-menu.is-collapsed {
   display: none;
