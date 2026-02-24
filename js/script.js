@@ -297,7 +297,7 @@ if (authGateLoginBtn) {
   });
 }
 
-await requireMapSignIn({ prompt: true });
+await requireMapSignIn({ prompt: false });
 
 const L = window.L;
 
