@@ -134,6 +134,22 @@ html, body {
   border-radius: 5px;
 }
 
+#mile-range-go-btn {
+  width: 80%;
+  padding: 6px;
+  margin-top: 6px;
+  border: none;
+  border-radius: 5px;
+  background-color: #154D14;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#mile-range-go-btn:hover {
+  background-color: #103a10;
+}
+
 /* Footer styling */
 #footer {
   background-color: #f8f8f8;
