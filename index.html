@@ -75,7 +75,15 @@
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 
-<body>
+<body class="map-locked">
+  <div id="auth-gate" class="auth-gate" role="dialog" aria-live="polite" aria-modal="true">
+    <div class="auth-gate-card">
+      <h1>Sign in required</h1>
+      <p id="auth-gate-message">Please sign in with Google to view the map.</p>
+      <button id="auth-gate-login-btn" class="account-btn" type="button">Sign in with Google</button>
+    </div>
+  </div>
+
   <!-- Map Container -->
   <div id="map"></div>
   

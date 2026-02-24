@@ -180,6 +180,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
   loadAccount().catch(err => {
     console.error(err);
-    alert(err?.message || String(err));
+    const errorEl = document.getElementById("account-error");
+    if (errorEl) {
+      errorEl.textContent = "Unable to sign in right now. Please try again.";
+    }
   });
 });
