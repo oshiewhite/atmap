@@ -3131,10 +3131,13 @@ function updateMapBasedOnMileMarkers() {
     var inputValue1 = parseInt(document.getElementById('number-input-1').value, 10);
     var inputValue2 = parseInt(document.getElementById('number-input-2').value, 10);
 
-    if (!Number.isInteger(inputValue1) || !Number.isInteger(inputValue2) || inputValue1 > inputValue2) return;
+    if (!Number.isInteger(inputValue1)) return;
 
     var marker1 = mileMarkers.find(marker => marker.mile === inputValue1);
-    var marker2 = mileMarkers.find(marker => marker.mile === inputValue2);
+    var hasValidEndMile = Number.isInteger(inputValue2) && inputValue2 >= inputValue1;
+    var marker2 = hasValidEndMile
+        ? mileMarkers.find(marker => marker.mile === inputValue2)
+        : null;
 
     if (marker1 && marker2) {
         var bounds = L.latLngBounds([marker1.lat, marker1.lng], [marker2.lat, marker2.lng]);
