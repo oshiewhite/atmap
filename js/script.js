@@ -1,25 +1,3 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-// import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import {
-  getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,
-  signOut
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import {
-  getFirestore,
-  collection,
-  addDoc,
-  serverTimestamp,
-  doc,
-  getDoc,
-  setDoc,
-  runTransaction
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-
-// =======================
-// Firebase Init + saveFeedback
-// =======================
 const firebaseConfig = {
   apiKey: "AIzaSyBuER6gwaNw4om3OCHkwK7nIETeroG-vIs",
   authDomain: "at-map-tmc.firebaseapp.com",
@@ -30,15 +8,55 @@ const firebaseConfig = {
   measurementId: "G-90GYNPFF82"
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const googleProvider = new GoogleAuthProvider();
-const db = getFirestore(app);
+const isRuntimeOffline = window.ATMAP_RUNTIME_OFFLINE === true;
+
+let auth = null;
+let db = null;
+let googleProvider = null;
+let firebaseFns = null;
+
+async function initializeFirebase() {
+  if (firebaseFns) return firebaseFns;
+  if (isRuntimeOffline) {
+    throw new Error("Feedback is unavailable while offline.");
+  }
+
+  const [{ initializeApp }, authMod, firestoreMod] = await Promise.all([
+    import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js"),
+    import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js"),
+    import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js")
+  ]);
+
+  const app = initializeApp(firebaseConfig);
+  auth = authMod.getAuth(app);
+  googleProvider = new authMod.GoogleAuthProvider();
+  db = firestoreMod.getFirestore(app);
+
+  firebaseFns = {
+    signInWithPopup: authMod.signInWithPopup,
+    signOut: authMod.signOut,
+    collection: firestoreMod.collection,
+    addDoc: firestoreMod.addDoc,
+    serverTimestamp: firestoreMod.serverTimestamp,
+    doc: firestoreMod.doc,
+    getDoc: firestoreMod.getDoc,
+    setDoc: firestoreMod.setDoc
+  };
+
+  return firebaseFns;
+}
 
 // Ensure signed-in user has a profile doc w/ username (REQUIRED)
 async function ensureUserProfile() {
+  const {
+    signInWithPopup,
+    signOut,
+    doc,
+    getDoc,
+    setDoc,
+    serverTimestamp
+  } = await initializeFirebase();
 
-  // if (!auth.currentUser) {
   if (!auth.currentUser) {
     try {
       await signInWithPopup(auth, googleProvider);
@@ -49,10 +67,8 @@ async function ensureUserProfile() {
     }
   }
 
-
   const u = auth.currentUser;
   const userRef = doc(db, "users", u.uid);
-  // const snap = await getDoc(userRef);
 let snap;
 try {
   snap = await getDoc(userRef);
@@ -121,6 +137,7 @@ function titleCase(str) {
 async function saveFeedback(payload) {
   console.log("[saveFeedback] CALLED", payload);
 
+  const { addDoc, collection, serverTimestamp } = await initializeFirebase();
   const u = await ensureUserProfile();
   console.log("[saveFeedback] user", { uid: u.uid, username: u.username });
 
@@ -136,6 +153,7 @@ async function saveFeedback(payload) {
 }
 
 async function saveMarkerSuggestion(payload) {
+  const { addDoc, collection, serverTimestamp } = await initializeFirebase();
   const u = await ensureUserProfile();
   const suggestionDoc = {
     ...payload,
@@ -211,8 +229,11 @@ const toggleButton = document.getElementById('toggle-leaflet');
 
 // Function to update button text based on mode
 function updateToggleButtonText() {
-  const offlineMode = localStorage.getItem('offlineMode') === 'true';
-  toggleButton.innerText = offlineMode ? 'Switch to Online Mode' : 'Switch to Offline Mode';
+  const manualOfflineMode = localStorage.getItem('offlineMode') === 'true';
+  const runtimeOfflineMode = window.ATMAP_RUNTIME_OFFLINE === true;
+  toggleButton.innerText = (manualOfflineMode || runtimeOfflineMode)
+    ? 'Switch to Online Mode'
+    : 'Switch to Offline Mode';
 }
 
 // Update text on initial load
