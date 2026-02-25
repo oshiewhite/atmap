@@ -1302,6 +1302,7 @@ function clearActiveCityMode() {
 
   currentCityName = "Appalachian Trail";
   document.getElementById("city-name-display").innerText = currentCityName;
+  scheduleVisiblePlaceMarkerRefresh();
 }
 
 // ==================================================
@@ -2314,11 +2315,8 @@ function addMarkerClickHandler(marker, cityOrCities, routeidMaybe) {
       cb.dispatchEvent(new Event("change"));
     });
 
-    // Turn on all involved city groups
-    activeCityKeys.forEach(k => {
-      const g = cityLayerGroups[k];
-      if (g) map.addLayer(g);
-    });
+    // Keep active cities in state only; marker rendering is viewport-cull driven.
+    scheduleVisiblePlaceMarkerRefresh();
 
     // Load ALL routes (unique routeids)
     const routeids = [...new Set(cities.map(c => c.routeid))];
@@ -3254,9 +3252,43 @@ function areCoordinatesClose(coord1, coord2, tolerance = 0.0001) {
 }
 
 const placeLayers = {};
+const allPlaceMarkersByType = {};
+const placeTypeEnabled = {};
+const PLACE_VIEWPORT_PADDING = 0.2;
+
 Object.keys(PLACE_TYPES).forEach(type => {
   placeLayers[type] = L.layerGroup();
+  allPlaceMarkersByType[type] = [];
+  placeTypeEnabled[type] = false;
 });
+
+function refreshVisiblePlaceMarkers() {
+  const bounds = map.getBounds().pad(PLACE_VIEWPORT_PADDING);
+  const cityFilter = Array.isArray(activeCityKeys) && activeCityKeys.length > 0
+    ? new Set(activeCityKeys)
+    : null;
+
+  Object.keys(PLACE_TYPES).forEach(type => {
+    const layer = placeLayers[type];
+    layer.clearLayers();
+
+    if (!placeTypeEnabled[type]) return;
+
+    const markers = allPlaceMarkersByType[type] || [];
+    markers.forEach(marker => {
+      if (cityFilter && !cityFilter.has(marker.__placeCity)) return;
+      const ll = marker.getLatLng?.();
+      if (!ll || !bounds.contains(ll)) return;
+      layer.addLayer(marker);
+    });
+  });
+}
+
+let refreshVisiblePlaceMarkersTimer = null;
+function scheduleVisiblePlaceMarkerRefresh() {
+  clearTimeout(refreshVisiblePlaceMarkersTimer);
+  refreshVisiblePlaceMarkersTimer = setTimeout(refreshVisiblePlaceMarkers, 60);
+}
 function makeCityLabelMarker(cityName, lat, lng) {
   const cityTextIcon = L.divIcon({
     className: "city-text-label",
@@ -3414,8 +3446,8 @@ marker.on("click", function (e) {
 marker.__placeCityDisplay = cityDisplay;
 
 
-        // add to global type layer
-        placeLayers[type].addLayer(marker);
+        // store marker by type; viewport culling decides what to render
+        allPlaceMarkersByType[type].push(marker);
 
         // add to city group
 if (cityKey && cityLayerGroups[cityKey]) {
@@ -3423,6 +3455,7 @@ if (cityKey && cityLayerGroups[cityKey]) {
 }
 
       }
+      scheduleVisiblePlaceMarkerRefresh();
     })
     .catch(err => console.error("Error loading places.csv:", err));
 }
@@ -3520,31 +3553,19 @@ function scheduleAutoSpiderfy(reason) {
 
 map.on("zoomend", () => scheduleAutoSpiderfy("zoom"));
 map.on("moveend", () => scheduleAutoSpiderfy("move"));
+map.on("zoomend", scheduleVisiblePlaceMarkerRefresh);
+map.on("moveend", scheduleVisiblePlaceMarkerRefresh);
 
 
 
 function togglePlaceType(type, checked) {
   const layer = placeLayers[type];
+  placeTypeEnabled[type] = !!checked;
 
-  // If we're NOT in any city mode, just toggle global layers
-  if (!activeCityKeys || activeCityKeys.length === 0) {
-    if (checked) map.addLayer(layer);
-    else map.removeLayer(layer);
-    return;
-  }
+  if (checked) map.addLayer(layer);
+  else map.removeLayer(layer);
 
-  // City mode (single OR multi): toggle markers only inside the active city groups
-  activeCityKeys.forEach(cityKey => {
-    const cityGroup = cityLayerGroups[cityKey];
-    if (!cityGroup) return;
-
-    cityGroup.eachLayer(m => {
-      if (m.__placeType === type) {
-        if (checked) map.addLayer(m);
-        else map.removeLayer(m);
-      }
-    });
-  });
+  scheduleVisiblePlaceMarkerRefresh();
 }
 
 
