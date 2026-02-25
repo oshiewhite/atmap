@@ -76,6 +76,13 @@
 </head>
 
 <body class="map-locked">
+  <div id="app-loading" class="app-loading" role="status" aria-live="polite" hidden>
+    <div class="app-loading-card">
+      <span class="app-loading-spinner" aria-hidden="true"></span>
+      <span id="app-loading-text">Loading map…</span>
+    </div>
+  </div>
+
   <div id="auth-gate" class="auth-gate" role="dialog" aria-live="polite" aria-modal="true">
     <div id="auth-gate-signin-card" class="auth-gate-card">
       <h1>Sign in required</h1>
