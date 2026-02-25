@@ -166,7 +166,7 @@ async function saveMarkerSuggestion(payload) {
 }
 document.getElementById("account-btn")?.addEventListener("click", async () => {
   try {
-    const hasAccess = await requireMapSignIn({ prompt: true });
+    const hasAccess = await requireMapSignIn({ prompt: true, allowGuest: false });
     if (!hasAccess) return;
     window.location.href = "account.html";
   } catch (e) {
@@ -182,6 +182,7 @@ const authGateProfileCard = document.getElementById("auth-gate-profile-card");
 const authGateMessage = document.getElementById("auth-gate-message");
 const authGateProfileMessage = document.getElementById("auth-gate-profile-message");
 const authGateLoginBtn = document.getElementById("auth-gate-login-btn");
+const authGateGuestBtn = document.getElementById("auth-gate-guest-btn");
 const authGateProfileForm = document.getElementById("auth-gate-profile-form");
 const authGateUsernameInput = document.getElementById("auth-gate-username");
 const authGateMapUpdatesCheckbox = document.getElementById("auth-gate-map-updates");
@@ -190,6 +191,7 @@ const authGateProfileError = document.getElementById("auth-gate-profile-error");
 const authGateProfileSubmit = document.getElementById("auth-gate-profile-submit");
 const appLoading = document.getElementById("app-loading");
 const appLoadingText = document.getElementById("app-loading-text");
+const MAP_GUEST_MODE_STORAGE_KEY = "atmap-guest-mode";
 
 let appLoadingCount = 0;
 
@@ -312,12 +314,35 @@ function promptForProfileDetails(existingProfile = {}) {
   });
 }
 
-async function requireMapSignIn({ prompt = false } = {}) {
+function isGuestModeEnabled() {
+  return localStorage.getItem(MAP_GUEST_MODE_STORAGE_KEY) === "true";
+}
+
+function setGuestModeEnabled(enabled) {
+  if (enabled) {
+    localStorage.setItem(MAP_GUEST_MODE_STORAGE_KEY, "true");
+  } else {
+    localStorage.removeItem(MAP_GUEST_MODE_STORAGE_KEY);
+  }
+}
+
+function continueAsGuest() {
+  setGuestModeEnabled(true);
+  setMapLocked(false);
+}
+
+async function requireMapSignIn({ prompt = false, allowGuest = true } = {}) {
   const { onAuthStateChanged, signInWithPopup } = await initializeFirebase();
+
+  if (allowGuest && isGuestModeEnabled()) {
+    setMapLocked(false);
+    return true;
+  }
 
   const existingUser = await waitForInitialAuthUser(onAuthStateChanged);
 
   if (existingUser) {
+    setGuestModeEnabled(false);
     await ensureUserProfile();
     setMapLocked(false);
     return true;
@@ -331,6 +356,7 @@ async function requireMapSignIn({ prompt = false } = {}) {
 
   try {
     await signInWithPopup(auth, googleProvider);
+    setGuestModeEnabled(false);
     await ensureUserProfile();
     setMapLocked(false);
     return true;
@@ -370,6 +396,12 @@ if (authGateLoginBtn) {
     authGateLoginBtn.disabled = true;
     const ok = await withAppLoading("Signing you in…", () => requireMapSignIn({ prompt: true }));
     if (!ok) authGateLoginBtn.disabled = false;
+  });
+}
+
+if (authGateGuestBtn) {
+  authGateGuestBtn.addEventListener("click", () => {
+    continueAsGuest();
   });
 }
 
