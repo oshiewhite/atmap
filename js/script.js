@@ -289,12 +289,7 @@ function promptForProfileDetails(existingProfile = {}) {
 async function requireMapSignIn({ prompt = false } = {}) {
   const { onAuthStateChanged, signInWithPopup } = await initializeFirebase();
 
-  const existingUser = await new Promise((resolve) => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      unsub();
-      resolve(user);
-    });
-  });
+  const existingUser = await waitForInitialAuthUser(onAuthStateChanged);
 
   if (existingUser) {
     await ensureUserProfile();
@@ -321,6 +316,27 @@ async function requireMapSignIn({ prompt = false } = {}) {
   }
 }
 
+function waitForInitialAuthUser(onAuthStateChanged) {
+  if (auth?.currentUser) return Promise.resolve(auth.currentUser);
+
+  return new Promise((resolve) => {
+    let settled = false;
+    let timer = null;
+    let unsub = null;
+
+    const finalize = (user) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      if (typeof unsub === "function") unsub();
+      resolve(user || null);
+    };
+
+    unsub = onAuthStateChanged(auth, (user) => finalize(user));
+    timer = window.setTimeout(() => finalize(auth?.currentUser || null), 2500);
+  });
+}
+
 setAuthGateMode("signin", "Please sign in with Google to view the map.");
 
 if (authGateLoginBtn) {
@@ -331,7 +347,11 @@ if (authGateLoginBtn) {
   });
 }
 
-await requireMapSignIn({ prompt: false });
+requireMapSignIn({ prompt: false }).catch((err) => {
+  console.error("Initial map sign-in check failed:", err);
+  setAuthGateMode("signin", "Please sign in with Google to view the map.");
+  setMapLocked(true, "Please sign in with Google to view the map.");
+});
 
 const L = window.L;
 
