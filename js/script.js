@@ -3334,17 +3334,42 @@ function makeCityLabelMarker(cityName, lat, lng) {
 }
 
 function buildGoogleMapsUrl(raw) {
-  // your CSV seems to have placeId sometimes
-  // if it's already a URL, just use it
   if (!raw) return null;
-  if (raw.startsWith("http")) return raw;
+
+  const normalized = raw.trim();
+  if (!normalized) return null;
+
+  const extractPlaceId = value => {
+    const placeIdMatch = value.match(/place_id:([^&\s]+)/i);
+    if (placeIdMatch && placeIdMatch[1]) return placeIdMatch[1].trim();
+    return null;
+  };
+
+  const placeIdFromRaw = extractPlaceId(normalized);
+  if (placeIdFromRaw) {
+    return `https://www.google.com/maps/search/?api=1&query=Google&query_place_id=${encodeURIComponent(placeIdFromRaw)}`;
+  }
+
+  if (normalized.startsWith("http")) {
+    try {
+      const parsed = new URL(normalized);
+      const qValue = parsed.searchParams.get("q") || parsed.searchParams.get("query");
+      const placeIdFromQuery = qValue ? extractPlaceId(qValue) : null;
+      if (placeIdFromQuery) {
+        return `https://www.google.com/maps/search/?api=1&query=Google&query_place_id=${encodeURIComponent(placeIdFromQuery)}`;
+      }
+    } catch (_) {
+      // fall through to returning the original value
+    }
+    return normalized;
+  }
 
   // if it looks like "place_id:XXXX"
-  if (raw.includes(":")) {
-    const placeId = raw.split(":")[1];
-    return `https://www.google.com/maps/search/?api=1&query_place_id=${placeId}`;
+  if (normalized.includes(":")) {
+    const placeId = normalized.split(":")[1];
+    return `https://www.google.com/maps/search/?api=1&query=Google&query_place_id=${encodeURIComponent(placeId)}`;
   }
-  return raw;
+  return normalized;
 }
 function isHumanMarkerClick(e) {
   // Leaflet sets e.originalEvent for real DOM interactions (mouse/touch)
