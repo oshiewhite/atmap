@@ -188,6 +188,32 @@ const authGateMapUpdatesCheckbox = document.getElementById("auth-gate-map-update
 const authGateMarketingConsentCheckbox = document.getElementById("auth-gate-marketing-consent");
 const authGateProfileError = document.getElementById("auth-gate-profile-error");
 const authGateProfileSubmit = document.getElementById("auth-gate-profile-submit");
+const appLoading = document.getElementById("app-loading");
+const appLoadingText = document.getElementById("app-loading-text");
+
+let appLoadingCount = 0;
+
+function startAppLoading(message = "Loading map…") {
+  appLoadingCount += 1;
+  if (appLoadingText) appLoadingText.textContent = message;
+  if (appLoading) appLoading.hidden = false;
+}
+
+function stopAppLoading() {
+  appLoadingCount = Math.max(0, appLoadingCount - 1);
+  if (appLoadingCount === 0 && appLoading) {
+    appLoading.hidden = true;
+  }
+}
+
+async function withAppLoading(message, task) {
+  startAppLoading(message);
+  try {
+    return await task();
+  } finally {
+    stopAppLoading();
+  }
+}
 
 function syncElevationPanelForAuthGate(locked) {
   const panel = document.getElementById("elevation-panel");
@@ -342,12 +368,12 @@ setAuthGateMode("signin", "Please sign in with Google to view the map.");
 if (authGateLoginBtn) {
   authGateLoginBtn.addEventListener("click", async () => {
     authGateLoginBtn.disabled = true;
-    const ok = await requireMapSignIn({ prompt: true });
+    const ok = await withAppLoading("Signing you in…", () => requireMapSignIn({ prompt: true }));
     if (!ok) authGateLoginBtn.disabled = false;
   });
 }
 
-requireMapSignIn({ prompt: false }).catch((err) => {
+withAppLoading("Checking sign-in…", () => requireMapSignIn({ prompt: false })).catch((err) => {
   console.error("Initial map sign-in check failed:", err);
   setAuthGateMode("signin", "Please sign in with Google to view the map.");
   setMapLocked(true, "Please sign in with Google to view the map.");
@@ -970,7 +996,7 @@ async function initElevationProfile() {
 }
 
 // Call it once after map is created
-initElevationProfile();
+withAppLoading("Loading map data…", () => initElevationProfile());
 function redrawElevationNow() {
   const pts = getTrailPointsInView();
   drawElevationProfile(pts);
@@ -1427,7 +1453,7 @@ let mainTrailLayer = null; // store reference to the main trail
 // =======================
 // Data Loading: Trail GeoJSON
 // =======================
-fetch('data/at.geojson')
+withAppLoading("Loading map data…", () => fetch('data/at.geojson'))
     .then(response => response.json())
     .then(data => {
         L.geoJSON(data, {
@@ -1452,7 +1478,7 @@ fetch('data/at.geojson')
 // =======================
 // Data Loading: Mile Markers
 // =======================
-fetch('data/mile_markers.csv')
+withAppLoading("Loading map data…", () => fetch('data/mile_markers.csv'))
     .then(response => response.text())
     .then(csvText => {
         var lines = csvText.split('\n');
@@ -1669,7 +1695,7 @@ function createResourceCityTextLabels() {
       ? escapeHtml
       : (str) => String(str).replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
 
-  fetch("data/resources.csv")
+  withAppLoading("Loading map data…", () => fetch("data/resources.csv"))
     .then(r => r.text())
     .then(text => {
       const lines = text.split(/\r?\n/).filter(Boolean);
@@ -3506,7 +3532,7 @@ if (cityKey && cityLayerGroups[cityKey]) {
 }
 
 // replace BOTH of your calls:
-loadPlacesAndCityGroups();
+withAppLoading("Loading map data…", () => loadPlacesAndCityGroups());
 // ===== Auto spiderfy settings =====
 const AUTO_SPIDERFY_ZOOM   = 1;
 const AUTO_SPIDERFY_PX     = 6;   // match nearbyDistance
