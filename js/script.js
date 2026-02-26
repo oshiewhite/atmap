@@ -1302,6 +1302,8 @@ const PLACE_TYPES = {
   hotel:  { checkboxId: 'hotel-checkbox',     icon: 'icons/hotel.png',  label: 'Hotel',     autoOnCityClick: true },
   campground:  { checkboxId: 'campground-checkbox',     icon: 'icons/campground.png',  label: 'Campground',     autoOnCityClick: true },
   shower:  { checkboxId: 'shower-checkbox',     icon: 'icons/shower.png',  label: 'Shower',     autoOnCityClick: true },
+buffet:  { checkboxId: 'buffet-checkbox',     icon: 'icons/buffet.png',  label: 'Buffet',     autoOnCityClick: true },
+
 
   // Transportation types (add/remove here only)
   shuttle:     { checkboxId: 'shuttle-checkbox',        icon: 'icons/shuttle.png',     label: 'Shuttle',        autoOnCityClick: false },
