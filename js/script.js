@@ -3346,7 +3346,8 @@ function refreshVisiblePlaceMarkers() {
   const cityFilter = Array.isArray(activeCityKeys) && activeCityKeys.length > 0
     ? new Set(activeCityKeys)
     : null;
-  const shouldDedupeAcrossCities = !cityFilter;
+  const activeCityCount = cityFilter ? cityFilter.size : 0;
+  const shouldDedupeAcrossCities = !cityFilter || activeCityCount > 1;
 
   Object.keys(PLACE_TYPES).forEach(type => {
     const layer = placeLayers[type];
