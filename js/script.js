@@ -3346,6 +3346,7 @@ function refreshVisiblePlaceMarkers() {
   const cityFilter = Array.isArray(activeCityKeys) && activeCityKeys.length > 0
     ? new Set(activeCityKeys)
     : null;
+  const shouldDedupeAcrossCities = !cityFilter;
 
   Object.keys(PLACE_TYPES).forEach(type => {
     const layer = placeLayers[type];
@@ -3354,10 +3355,19 @@ function refreshVisiblePlaceMarkers() {
     if (!placeTypeEnabled[type]) return;
 
     const markers = allPlaceMarkersByType[type] || [];
+    const seenPlaceDedupeKeys = shouldDedupeAcrossCities ? new Set() : null;
+
     markers.forEach(marker => {
       if (cityFilter && !cityFilter.has(marker.__placeCity)) return;
       const ll = marker.getLatLng?.();
       if (!ll || !bounds.contains(ll)) return;
+
+      if (seenPlaceDedupeKeys) {
+        const dedupeKey = marker.__placeDedupeKey;
+        if (dedupeKey && seenPlaceDedupeKeys.has(dedupeKey)) return;
+        if (dedupeKey) seenPlaceDedupeKeys.add(dedupeKey);
+      }
+
       layer.addLayer(marker);
     });
   });
@@ -3548,6 +3558,7 @@ marker.on("click", function (e) {
         marker.__placeType = type;
         marker.__placeCity = cityKey;
 marker.__placeCityDisplay = cityDisplay;
+        marker.__placeDedupeKey = `${name.toLowerCase()}|${lat.toFixed(6)},${lng.toFixed(6)}`;
 
 
         // store marker by type; viewport culling decides what to render
