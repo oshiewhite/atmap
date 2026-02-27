@@ -1861,7 +1861,6 @@ function loadAll() {
 			  `${safeName}<br>` +
 			  `${safeKey}<br>` +
 			  `${safeCrsType}<br>` +
-			  `${safeDist}` +
 			  `<br><a href="#" class="water-feedback-link" data-water-key="${safeKey}">Give feedback</a>`;
 
 
