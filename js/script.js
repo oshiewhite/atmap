@@ -3354,10 +3354,19 @@ function refreshVisiblePlaceMarkers() {
     if (!placeTypeEnabled[type]) return;
 
     const markers = allPlaceMarkersByType[type] || [];
+    const seenTrailBuffets = (!cityFilter && type === "buffet") ? new Set() : null;
+
     markers.forEach(marker => {
       if (cityFilter && !cityFilter.has(marker.__placeCity)) return;
       const ll = marker.getLatLng?.();
       if (!ll || !bounds.contains(ll)) return;
+
+      if (seenTrailBuffets) {
+        const dedupeKey = marker.__trailBuffetDedupeKey || marker.__placeNameNorm || "";
+        if (dedupeKey && seenTrailBuffets.has(dedupeKey)) return;
+        if (dedupeKey) seenTrailBuffets.add(dedupeKey);
+      }
+
       layer.addLayer(marker);
     });
   });
@@ -3548,6 +3557,8 @@ marker.on("click", function (e) {
         marker.__placeType = type;
         marker.__placeCity = cityKey;
 marker.__placeCityDisplay = cityDisplay;
+marker.__placeNameNorm = name.trim().toLowerCase();
+marker.__trailBuffetDedupeKey = `${name.trim().toLowerCase()}|${lat.toFixed(5)}|${lng.toFixed(5)}`;
 
 
         // store marker by type; viewport culling decides what to render
