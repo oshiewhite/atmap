@@ -3567,7 +3567,7 @@ if (cityKey && cityLayerGroups[cityKey]) {
 // replace BOTH of your calls:
 withAppLoading("Loading map data…", () => loadPlacesAndCityGroups());
 // ===== Auto spiderfy settings =====
-const AUTO_SPIDERFY_ZOOM   = 1;
+const AUTO_SPIDERFY_ZOOM   = 15;
 const AUTO_SPIDERFY_PX     = 6;   // match nearbyDistance
 const AUTO_SPIDERFY_METERS = 3;   // only spiderfy if basically same coords
 
