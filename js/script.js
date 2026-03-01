@@ -2590,18 +2590,7 @@ map.getContainer().addEventListener("input", (e) => {
   suggestionNotes = notesInput.value || "";
 });
 
-// map.getContainer().addEventListener("click", function (e) {
-["mousedown","touchstart","click"].forEach(evt => {
-  map.getContainer().addEventListener(evt, function (e) {
-    const closeBtn = e.target.closest(".city-label-close");
-    if (!closeBtn) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    // only actually close on click (not on press)
-    // only actually close on click (not on press)
-if (evt === "click") {
+function closeActiveCityLayer() {
   const m = window.__activeCityMarker;
 
   if (!m) {
@@ -2621,6 +2610,19 @@ if (evt === "click") {
   // Optional: if you ever set window.__activeCityMarker elsewhere, clear it
   window.__activeCityMarker = null;
 }
+
+// map.getContainer().addEventListener("click", function (e) {
+["touchstart", "click"].forEach(evt => {
+  map.getContainer().addEventListener(evt, function (e) {
+    const closeBtn = e.target.closest(".city-label-close");
+    if (!closeBtn) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    // iOS Safari may suppress the synthetic click when touchstart is prevented,
+    // so close immediately for touch and click.
+    closeActiveCityLayer();
 
 
   }, { passive: false });
