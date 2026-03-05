@@ -1393,8 +1393,35 @@ function updateCityNameDisplayFromActiveCities() {
   document.getElementById("city-name-display").innerText = currentCityName;
 }
 
+function removeCityTextLabels(cityKey = null) {
+  if (!resupplyLayerGroup || typeof resupplyLayerGroup.eachLayer !== "function") return;
+
+  const normalizedKey = cityKey ? String(cityKey).trim().toLowerCase() : null;
+
+  resupplyLayerGroup.eachLayer((layer) => {
+    if (layer?.__cityLabel) {
+      const labelKey = (layer.__cityLabel.__cityKey || "").trim().toLowerCase();
+      if (!normalizedKey || labelKey === normalizedKey) {
+        resupplyLayerGroup.removeLayer(layer.__cityLabel);
+      }
+    }
+
+    if (Array.isArray(layer?.__cityLabels)) {
+      layer.__cityLabels.forEach((labelLayer) => {
+        if (!labelLayer) return;
+        const labelKey = (labelLayer.__cityKey || "").trim().toLowerCase();
+        if (!normalizedKey || labelKey === normalizedKey) {
+          resupplyLayerGroup.removeLayer(labelLayer);
+        }
+      });
+    }
+  });
+}
+
 async function closeSpecificCityLayer(cityKey) {
   if (!cityKey || !activeCityRouteIds.has(cityKey)) return;
+
+  removeCityTextLabels(cityKey);
 
   activeCityRouteIds.delete(cityKey);
   activeCityNamesByKey.delete(cityKey);
@@ -1429,6 +1456,8 @@ function clearActiveCityMode() {
     });
   }
   currentGeoJsonLayers = [];
+
+  removeCityTextLabels();
 
   // remove all active city place layers
   if (Array.isArray(activeCityKeys)) {
@@ -2143,6 +2172,7 @@ if (sharedKey !== "") {
 			  keyboard: false,
 			  zIndexOffset: 10000
 			});
+			marker.__cityLabel.__cityKey = String(name || "").trim().toLowerCase();
 
 
 			const routeid = parseFloat(line[11]);
@@ -2703,6 +2733,7 @@ function activateCityFromPopup(city, routeid, focusLatLng) {
     keyboard: false,
     zIndexOffset: 10000
   });
+  tempMarker.__cityLabel.__cityKey = String(city || "").trim().toLowerCase();
 
   // Close the shared resupply popup FIRST (so we don't close the new city popup)
   map.closePopup();
@@ -3440,12 +3471,15 @@ function makeCityLabelMarker(cityName, lat, lng, cityKey) {
     `
   });
 
-  return L.marker([lat, lng], {
+  const marker = L.marker([lat, lng], {
     icon: cityTextIcon,
     interactive: true,
     keyboard: false,
     zIndexOffset: 10000
   });
+
+  marker.__cityKey = resolvedCityKey;
+  return marker;
 }
 
 function buildGoogleMapsUrl(raw) {
