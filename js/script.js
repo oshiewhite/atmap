@@ -1343,6 +1343,83 @@ const ROAD_CROSSINGS = [];
 // --- Multi-city "active cities" support ---
 let activeCityKeys = null;              // array of cityKey strings (lowercase), or null
 let currentGeoJsonLayers = [];          // store multiple route layers, not just one
+let activeCityRouteIds = new Map();     // cityKey -> routeid
+let activeCityNamesByKey = new Map();   // cityKey -> display name
+
+async function loadRouteLayersForIds(routeids, focusMarker) {
+  const ROUTE_COLORS = ["purple", "green", "orange"];
+
+  const results = await Promise.allSettled(
+    routeids.map(async (rid, index) => {
+      const url = `data/${rid}.geojson`;
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`Missing route file: ${url} (HTTP ${r.status})`);
+
+      const gj = await r.json();
+      const color = ROUTE_COLORS[index % ROUTE_COLORS.length];
+      return L.geoJSON(gj, { style: { color, weight: 3 } });
+    })
+  );
+
+  const layers = results.filter(x => x.status === "fulfilled").map(x => x.value);
+  const failed = results
+    .filter(x => x.status === "rejected")
+    .map(x => x.reason?.message || String(x.reason));
+
+  layers.forEach(l => l.addTo(map));
+  currentGeoJsonLayers = layers;
+
+  if (layers.length) {
+    const allBounds = L.latLngBounds([]);
+    layers.forEach(l => allBounds.extend(l.getBounds()));
+    if (allBounds.isValid()) map.fitBounds(allBounds);
+  } else if (focusMarker) {
+    map.setView(focusMarker.getLatLng(), 15);
+  }
+
+  if (failed.length) console.warn("[routes] some routes failed to load:", failed);
+  scheduleAutoSpiderfy();
+}
+
+function updateCityNameDisplayFromActiveCities() {
+  if (!activeCityRouteIds.size) {
+    currentCityName = "Appalachian Trail";
+  } else if (activeCityRouteIds.size === 1) {
+    currentCityName = [...activeCityNamesByKey.values()][0] || "Appalachian Trail";
+  } else {
+    currentCityName = `${activeCityRouteIds.size} Resupply Towns`;
+  }
+
+  document.getElementById("city-name-display").innerText = currentCityName;
+}
+
+async function closeSpecificCityLayer(cityKey) {
+  if (!cityKey || !activeCityRouteIds.has(cityKey)) return;
+
+  activeCityRouteIds.delete(cityKey);
+  activeCityNamesByKey.delete(cityKey);
+  const cityLayer = cityLayerGroups[cityKey];
+  if (cityLayer && map.hasLayer(cityLayer)) map.removeLayer(cityLayer);
+  activeCityKeys = activeCityRouteIds.size ? [...activeCityRouteIds.keys()] : null;
+
+  if (activeCityRouteIds.size === 0) {
+    clearActiveCityMode();
+    return;
+  }
+
+  if (Array.isArray(currentGeoJsonLayers)) {
+    currentGeoJsonLayers.forEach(l => {
+      if (l && map.hasLayer(l)) map.removeLayer(l);
+    });
+  }
+  currentGeoJsonLayers = [];
+
+  updateCityNameDisplayFromActiveCities();
+  scheduleVisiblePlaceMarkerRefresh();
+
+  const remainingRouteids = [...new Set([...activeCityRouteIds.values()])];
+  await loadRouteLayersForIds(remainingRouteids, window.__activeCityMarker);
+}
 
 function clearActiveCityMode() {
   // remove all loaded geojson route layers
@@ -1361,6 +1438,8 @@ function clearActiveCityMode() {
     });
   }
   activeCityKeys = null;
+  activeCityRouteIds = new Map();
+  activeCityNamesByKey = new Map();
 
   // also remove old single-city references if you still use them elsewhere
   if (currentCityLayer && map.hasLayer(currentCityLayer)) {
@@ -2038,6 +2117,7 @@ if (sharedKey !== "") {
 				  <span>${escapeHtml(name)}</span>
 				  <span
 					class="city-label-close"
+					data-city-key="${escapeHtml(name.toLowerCase())}"
 					style="
 					  cursor:pointer;
 					  font-weight:900;
@@ -2376,15 +2456,17 @@ function addMarkerClickHandler(marker, cityOrCities, routeidMaybe) {
       return;
     }
 
-    // Set active city keys (lowercase)
-    activeCityKeys = [...new Set(cities.map(c => c.city.toLowerCase()))];
-
-    // Update display name
-    currentCityName = (cities.length === 1)
-      ? (cities[0].city.charAt(0).toUpperCase() + cities[0].city.slice(1))
-      : `${cities.length} Resupply Towns`;
-
-    document.getElementById("city-name-display").innerText = currentCityName;
+    activeCityRouteIds = new Map();
+    activeCityNamesByKey = new Map();
+    cities.forEach(c => {
+      const key = c.city.toLowerCase();
+      if (!activeCityRouteIds.has(key)) {
+        activeCityRouteIds.set(key, c.routeid);
+        activeCityNamesByKey.set(key, c.city);
+      }
+    });
+    activeCityKeys = [...activeCityRouteIds.keys()];
+    updateCityNameDisplayFromActiveCities();
 
     // Auto-check + fire place type toggles (now uses activeCityKeys)
     CITY_AUTO_TYPES.forEach(type => {
@@ -2398,66 +2480,10 @@ function addMarkerClickHandler(marker, cityOrCities, routeidMaybe) {
     scheduleVisiblePlaceMarkerRefresh();
 
     // Load ALL routes (unique routeids)
-    const routeids = [...new Set(cities.map(c => c.routeid))];
+    const routeids = [...new Set([...activeCityRouteIds.values()])];
 
     try {
-// Load ALL routes (unique routeids) — but don't let missing files kill the rest
-const routeids = [...new Set(cities.map(c => c.routeid))];
-const ROUTE_COLORS = ["purple", "green", "orange"];
-
-const results = await Promise.allSettled(
-  routeids.map(async (rid, index) => {
-    const url = `data/${rid}.geojson`;
-    const r = await fetch(url);
-
-    // 404 / not ok -> treat as "no route file", not fatal
-    if (!r.ok) {
-      throw new Error(`Missing route file: ${url} (HTTP ${r.status})`);
-    }
-
-    const gj = await r.json();
-    const color = ROUTE_COLORS[index % ROUTE_COLORS.length];
-
-return L.geoJSON(gj, {
-  style: {
-    color,
-    weight: 3
-  }
-});
-
-  })
-);
-
-// Keep only successful layers
-const layers = results
-  .filter(x => x.status === "fulfilled")
-  .map(x => x.value);
-
-const failed = results
-  .filter(x => x.status === "rejected")
-  .map(x => x.reason?.message || String(x.reason));
-
-layers.forEach(l => l.addTo(map));
-currentGeoJsonLayers = layers;
-
-// Fit to ALL route bounds if any loaded, otherwise just zoom to marker
-if (layers.length) {
-  const allBounds = L.latLngBounds([]);
-  layers.forEach(l => allBounds.extend(l.getBounds()));
-  if (allBounds.isValid()) map.fitBounds(allBounds);
-} else {
-  map.setView(marker.getLatLng(), 15);
-}
-
-// Optional: log missing routes so you can see what's going on
-if (failed.length) {
-  console.warn("[routes] some routes failed to load:", failed);
-}
-
-// optional: spiderfy after move/zoom settles
-scheduleAutoSpiderfy();
-
-
+      await loadRouteLayersForIds(routeids, marker);
     } catch (err) {
       console.error("Failed loading multi-route GeoJSON:", err);
       map.setView(marker.getLatLng(), 15);
@@ -2485,19 +2511,6 @@ if (Array.isArray(marker.__cityLabels)) {
 
   marker.on("popupclose", function () {
     if (window.__activeCityMarker === marker) window.__activeCityMarker = null;
-if (marker.__cityLabel && resupplyLayerGroup.hasLayer(marker.__cityLabel)) {
-  resupplyLayerGroup.removeLayer(marker.__cityLabel);
-}
-
-if (Array.isArray(marker.__cityLabels)) {
-  marker.__cityLabels.forEach(lbl => {
-    if (lbl && resupplyLayerGroup.hasLayer(lbl)) {
-      resupplyLayerGroup.removeLayer(lbl);
-    }
-  });
-}
-
-    clearActiveCityMode();
   });
 }
 
@@ -2592,22 +2605,27 @@ map.getContainer().addEventListener("input", (e) => {
 
 function closeActiveCityLayer() {
   const m = window.__activeCityMarker;
+  const cityKey = window.__pendingCityCloseKey || null;
+  window.__pendingCityCloseKey = null;
+
+  if (cityKey) {
+    closeSpecificCityLayer(cityKey).catch(err => {
+      console.error("Failed to close specific city layer:", err);
+    });
+  } else {
+    clearActiveCityMode();
+  }
 
   if (!m) {
     map.closePopup();
     return;
   }
 
-  // If a popup exists, close it (will trigger popupclose cleanup)
   if (m.getPopup && m.getPopup()) {
     m.closePopup();
     return;
   }
 
-  // No popup bound (like your tempMarker path) — run the SAME cleanup manually
-  m.fire("popupclose");
-
-  // Optional: if you ever set window.__activeCityMarker elsewhere, clear it
   window.__activeCityMarker = null;
 }
 
@@ -2616,6 +2634,8 @@ function closeActiveCityLayer() {
   map.getContainer().addEventListener(evt, function (e) {
     const closeBtn = e.target.closest(".city-label-close");
     if (!closeBtn) return;
+
+    window.__pendingCityCloseKey = (closeBtn.getAttribute("data-city-key") || "").trim().toLowerCase() || null;
 
     e.preventDefault();
     e.stopPropagation();
@@ -2662,6 +2682,7 @@ function activateCityFromPopup(city, routeid, focusLatLng) {
         <span>${escapeHtml(city)}</span>
         <span
           class="city-label-close"
+          data-city-key="${escapeHtml(city.toLowerCase())}"
           style="
             cursor:pointer;
             font-weight:900;
