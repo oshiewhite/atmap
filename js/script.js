@@ -2221,7 +2221,7 @@ const popupHtml =
     const llLat = Number.isFinite(e.labelLat) ? e.labelLat : e.lat;
     const llLng = Number.isFinite(e.labelLng) ? e.labelLng : e.lng;
     if (!Number.isFinite(llLat) || !Number.isFinite(llLng)) return null;
-    return makeCityLabelMarker(e.name, llLat, llLng);
+    return makeCityLabelMarker(e.name, llLat, llLng, e.name);
   })
   .filter(Boolean);
 
@@ -3402,7 +3402,8 @@ function scheduleVisiblePlaceMarkerRefresh() {
   clearTimeout(refreshVisiblePlaceMarkersTimer);
   refreshVisiblePlaceMarkersTimer = setTimeout(refreshVisiblePlaceMarkers, 60);
 }
-function makeCityLabelMarker(cityName, lat, lng) {
+function makeCityLabelMarker(cityName, lat, lng, cityKey) {
+  const resolvedCityKey = (cityKey || cityName || "").trim().toLowerCase();
   const cityTextIcon = L.divIcon({
     className: "city-text-label",
     iconSize: null,
@@ -3426,6 +3427,7 @@ function makeCityLabelMarker(cityName, lat, lng) {
         <span>${escapeHtml(cityName)}</span>
         <span
           class="city-label-close"
+          data-city-key="${escapeHtml(resolvedCityKey)}"
           style="
             cursor:pointer;
             font-weight:900;
