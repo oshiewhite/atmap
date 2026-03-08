@@ -525,8 +525,29 @@ body.sidebar-open #sidebar-tab{
   margin-bottom: 6px;
   color: #111;
   display:flex;
-  justify-content: space-between;
+  align-items: center;
   gap: 10px;
+}
+
+#elevation-title-text{
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+#elevation-stats{
+  display: inline-flex;
+  gap: 8px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+#elevation-gain{
+  color: #0f7a2d;
+}
+
+#elevation-loss{
+  color: #a11a1a;
 }
 
 #elevation-canvas{
@@ -642,6 +663,14 @@ body.dark-mode .suggest-textarea {
 body.dark-mode .account-btn:hover,
 body.dark-mode #elevation-toggle:hover {
   background: #3a3a3a;
+}
+
+body.dark-mode #elevation-gain {
+  color: #6fdc8c;
+}
+
+body.dark-mode #elevation-loss {
+  color: #ff8c8c;
 }
 
 body.dark-mode #map,
