@@ -431,6 +431,98 @@ const MARKER_LABELS_STORAGE_KEY = "atmap-show-marker-labels";
 
 let showMarkerLabels = localStorage.getItem(MARKER_LABELS_STORAGE_KEY) === "true";
 const labelManagedMarkers = new Set();
+let pendingLabelOverlapRefresh = false;
+
+function boxesOverlap(a, b) {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
+
+function refreshVisibleMarkerLabels() {
+  pendingLabelOverlapRefresh = false;
+
+  if (!showMarkerLabels || !map || !map._loaded) return;
+
+  const bounds = map.getBounds();
+  const placementGrid = new Map();
+  const gridCellSize = 36;
+  const visibleLabels = [];
+
+  labelManagedMarkers.forEach((marker) => {
+    if (!marker || !marker._map || !marker.__alwaysLabelText) return;
+
+    const latLng = marker.getLatLng();
+    if (!latLng || !bounds.contains(latLng)) return;
+
+    const tooltip = marker.getTooltip();
+    const tooltipEl = tooltip?.getElement?.();
+    if (!tooltipEl) return;
+
+    const point = map.latLngToContainerPoint(latLng);
+    const labelWidth = Math.max(36, Math.min(180, 14 + marker.__alwaysLabelText.length * 6.5));
+    const labelHeight = 18;
+
+    visibleLabels.push({
+      tooltipEl,
+      box: {
+        left: point.x - labelWidth / 2,
+        right: point.x + labelWidth / 2,
+        top: point.y - 26 - labelHeight,
+        bottom: point.y - 26
+      },
+      point
+    });
+  });
+
+  visibleLabels
+    .sort((a, b) => (a.point.y - b.point.y) || (a.point.x - b.point.x))
+    .forEach((label) => {
+      const minX = Math.floor(label.box.left / gridCellSize);
+      const maxX = Math.floor(label.box.right / gridCellSize);
+      const minY = Math.floor(label.box.top / gridCellSize);
+      const maxY = Math.floor(label.box.bottom / gridCellSize);
+
+      let collides = false;
+      for (let gx = minX - 1; gx <= maxX + 1 && !collides; gx += 1) {
+        for (let gy = minY - 1; gy <= maxY + 1 && !collides; gy += 1) {
+          const cell = placementGrid.get(`${gx}:${gy}`);
+          if (!cell) continue;
+          for (let i = 0; i < cell.length; i += 1) {
+            if (boxesOverlap(label.box, cell[i])) {
+              collides = true;
+              break;
+            }
+          }
+        }
+      }
+
+      if (collides) {
+        label.tooltipEl.style.display = "none";
+        label.tooltipEl.setAttribute("aria-hidden", "true");
+        return;
+      }
+
+      label.tooltipEl.style.display = "";
+      label.tooltipEl.setAttribute("aria-hidden", "false");
+
+      for (let gx = minX; gx <= maxX; gx += 1) {
+        for (let gy = minY; gy <= maxY; gy += 1) {
+          const key = `${gx}:${gy}`;
+          const cell = placementGrid.get(key);
+          if (cell) {
+            cell.push(label.box);
+          } else {
+            placementGrid.set(key, [label.box]);
+          }
+        }
+      }
+    });
+}
+
+function scheduleVisibleMarkerLabelsRefresh() {
+  if (pendingLabelOverlapRefresh) return;
+  pendingLabelOverlapRefresh = true;
+  requestAnimationFrame(refreshVisibleMarkerLabels);
+}
 
 function applyTheme(theme) {
   document.body.classList.toggle("dark-mode", theme === "dark");
@@ -461,6 +553,8 @@ function updateMarkerLabelsVisibility() {
   if (markerLabelsCheckbox) {
     markerLabelsCheckbox.checked = showMarkerLabels;
   }
+
+  scheduleVisibleMarkerLabelsRefresh();
 }
 
 function registerMarkerLabel(marker, labelText) {
@@ -559,6 +653,8 @@ function escapeHtml(value) {
 var map = L.map('map', {
     closePopupOnClick: false
 }).setView([39.725324, -76.904297], 5);
+
+map.on("zoomend moveend", scheduleVisibleMarkerLabelsRefresh);
 
 const suggestionIcon = L.icon({
   iconUrl: "icons/tent_marker.png",
