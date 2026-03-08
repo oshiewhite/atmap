@@ -971,7 +971,35 @@ function getTrailPointsInView() {
 function drawElevationProfile(points, opts = {}) {
   const canvas = document.getElementById("elevation-canvas");
   const titleEl = document.getElementById("elevation-title-text");
+  const gainEl = document.getElementById("elevation-gain");
+  const lossEl = document.getElementById("elevation-loss");
   if (!canvas) return;
+
+  function formatElevationDelta(value) {
+    const rounded = Math.max(0, Math.round(value));
+    return Number.isFinite(rounded) ? rounded.toLocaleString() : "0";
+  }
+
+  function setElevationGainLoss(pointsForTotals) {
+    if (!gainEl || !lossEl) return;
+
+    if (!pointsForTotals || pointsForTotals.length < 2) {
+      gainEl.textContent = "+0";
+      lossEl.textContent = "-0";
+      return;
+    }
+
+    let gain = 0;
+    let loss = 0;
+    for (let i = 1; i < pointsForTotals.length; i++) {
+      const diff = pointsForTotals[i].elev - pointsForTotals[i - 1].elev;
+      if (diff > 0) gain += diff;
+      else loss += Math.abs(diff);
+    }
+
+    gainEl.textContent = `+${formatElevationDelta(gain)}`;
+    lossEl.textContent = `-${formatElevationDelta(loss)}`;
+  }
 
   const ctx = canvas.getContext("2d");
   const panel = canvas.parentElement;
@@ -1010,6 +1038,7 @@ function drawElevationProfile(points, opts = {}) {
     ctx.fillText("Zoom to the trail to see elevation.", 10, 18);
 
     if (titleEl) titleEl.textContent = "Elevation Profile";
+    setElevationGainLoss(points);
     return;
   }
 
@@ -1094,6 +1123,8 @@ function drawElevationProfile(points, opts = {}) {
 
     titleEl.textContent = `Elevation Profile • ${milesText} • ${Math.round(minElev)}–${Math.round(maxElev)} elev`;
   }
+
+  setElevationGainLoss(points);
 }
 
 let elevationUpdateTimer = null;
