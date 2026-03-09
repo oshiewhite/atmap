@@ -446,32 +446,67 @@ function refreshVisibleMarkerLabels() {
   if (!showMarkerLabels || !map || !map._loaded) return;
 
   const bounds = map.getBounds();
+  const mapSize = map.getSize();
   const placementGrid = new Map();
   const gridCellSize = 36;
   const visibleLabels = [];
+
+  function unbindMarkerLabel(marker) {
+    if (!marker?.getTooltip()) return;
+    marker.closeTooltip();
+    marker.unbindTooltip();
+  }
+
+  function bindMarkerLabel(marker) {
+    if (marker?.getTooltip()) return;
+    marker.bindTooltip(marker.__alwaysLabelText, {
+      permanent: true,
+      direction: "top",
+      offset: [0, -26],
+      className: "marker-name-label"
+    });
+  }
 
   labelManagedMarkers.forEach((marker) => {
     if (!marker || !marker._map || !marker.__alwaysLabelText) return;
 
     const latLng = marker.getLatLng();
-    if (!latLng || !bounds.contains(latLng)) return;
+    if (!latLng || !bounds.contains(latLng)) {
+      unbindMarkerLabel(marker);
+      return;
+    }
+
+    const point = map.latLngToContainerPoint(latLng);
+    if (point.x < 0 || point.y < 0 || point.x > mapSize.x || point.y > mapSize.y) {
+      unbindMarkerLabel(marker);
+      return;
+    }
+
+    bindMarkerLabel(marker);
+    marker.openTooltip();
 
     const tooltip = marker.getTooltip();
     const tooltipEl = tooltip?.getElement?.();
     if (!tooltipEl) return;
 
-    const point = map.latLngToContainerPoint(latLng);
     const labelWidth = Math.max(36, Math.min(180, 14 + marker.__alwaysLabelText.length * 6.5));
     const labelHeight = 18;
+    const box = {
+      left: point.x - labelWidth / 2,
+      right: point.x + labelWidth / 2,
+      top: point.y - 26 - labelHeight,
+      bottom: point.y - 26
+    };
+
+    if (box.left < 0 || box.top < 0 || box.right > mapSize.x || box.bottom > mapSize.y) {
+      tooltipEl.style.display = "none";
+      tooltipEl.setAttribute("aria-hidden", "true");
+      return;
+    }
 
     visibleLabels.push({
       tooltipEl,
-      box: {
-        left: point.x - labelWidth / 2,
-        right: point.x + labelWidth / 2,
-        top: point.y - 26 - labelHeight,
-        bottom: point.y - 26
-      },
+      box,
       point
     });
   });
@@ -538,17 +573,8 @@ function updateMarkerLabelsVisibility() {
   labelManagedMarkers.forEach((marker) => {
     if (!marker || !marker.__alwaysLabelText) return;
 
-    if (showMarkerLabels) {
-      marker.bindTooltip(marker.__alwaysLabelText, {
-        permanent: true,
-        direction: "top",
-        offset: [0, -26],
-        className: "marker-name-label"
-      });
-      if (marker._map) {
-        marker.openTooltip();
-      }
-    } else {
+    if (!showMarkerLabels) {
+      marker.closeTooltip();
       marker.unbindTooltip();
     }
   });
