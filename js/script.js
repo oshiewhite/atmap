@@ -425,9 +425,12 @@ const sidebar = document.getElementById("sidebar");
 const sidebarTab = document.getElementById("sidebar-tab");
 const themeToggleCheckbox = document.getElementById("theme-toggle-checkbox");
 const markerLabelsCheckbox = document.getElementById("marker-labels-checkbox");
+const saveViewBtn = document.getElementById("save-view-btn");
+const loadViewBtn = document.getElementById("load-view-btn");
 
 const THEME_STORAGE_KEY = "atmap-theme";
 const MARKER_LABELS_STORAGE_KEY = "atmap-show-marker-labels";
+const SAVED_VIEW_STORAGE_KEY = "atmap-saved-view";
 
 let showMarkerLabels = localStorage.getItem(MARKER_LABELS_STORAGE_KEY) === "true";
 const labelManagedMarkers = new Set();
@@ -579,6 +582,60 @@ markerLabelsCheckbox?.addEventListener("change", () => {
   localStorage.setItem(MARKER_LABELS_STORAGE_KEY, String(showMarkerLabels));
   updateMarkerLabelsVisibility();
 });
+
+function getCurrentViewState() {
+  const checkedCheckboxIds = Array.from(document.querySelectorAll("#sidebar input[type=\"checkbox\"]:checked"))
+    .map((el) => el.id)
+    .filter(Boolean);
+
+  const center = map.getCenter();
+  return {
+    center: { lat: center.lat, lng: center.lng },
+    zoom: map.getZoom(),
+    checkedCheckboxIds
+  };
+}
+
+function saveCurrentView() {
+  if (!map || !map._loaded) return;
+
+  const viewState = getCurrentViewState();
+  localStorage.setItem(SAVED_VIEW_STORAGE_KEY, JSON.stringify(viewState));
+}
+
+function loadSavedView() {
+  const raw = localStorage.getItem(SAVED_VIEW_STORAGE_KEY);
+  if (!raw) return;
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    console.warn("Failed to parse saved view:", err);
+    return;
+  }
+
+  const checkedIds = new Set(Array.isArray(parsed.checkedCheckboxIds) ? parsed.checkedCheckboxIds : []);
+
+  const sidebarCheckboxes = document.querySelectorAll("#sidebar input[type=\"checkbox\"]");
+  sidebarCheckboxes.forEach((checkbox) => {
+    if (!checkbox.id) return;
+    const shouldBeChecked = checkedIds.has(checkbox.id);
+    if (checkbox.checked === shouldBeChecked) return;
+    checkbox.checked = shouldBeChecked;
+    checkbox.dispatchEvent(new Event("change"));
+  });
+
+  const lat = Number(parsed?.center?.lat);
+  const lng = Number(parsed?.center?.lng);
+  const zoom = Number(parsed?.zoom);
+  if (Number.isFinite(lat) && Number.isFinite(lng) && Number.isFinite(zoom)) {
+    map.setView([lat, lng], zoom);
+  }
+}
+
+saveViewBtn?.addEventListener("click", saveCurrentView);
+loadViewBtn?.addEventListener("click", loadSavedView);
 
 function setSidebarOpen(isOpen){
   sidebar.classList.toggle("open", isOpen);
