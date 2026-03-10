@@ -436,10 +436,6 @@ let showMarkerLabels = localStorage.getItem(MARKER_LABELS_STORAGE_KEY) === "true
 const labelManagedMarkers = new Set();
 let pendingLabelOverlapRefresh = false;
 
-function boxesOverlap(a, b) {
-  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
-}
-
 function refreshVisibleMarkerLabels() {
   pendingLabelOverlapRefresh = false;
 
@@ -447,9 +443,6 @@ function refreshVisibleMarkerLabels() {
 
   const bounds = map.getBounds();
   const mapSize = map.getSize();
-  const placementGrid = new Map();
-  const gridCellSize = 36;
-  const visibleLabels = [];
 
   function unbindMarkerLabel(marker) {
     if (!marker?.getTooltip()) return;
@@ -504,56 +497,9 @@ function refreshVisibleMarkerLabels() {
       return;
     }
 
-    visibleLabels.push({
-      tooltipEl,
-      box,
-      point
-    });
+    tooltipEl.style.display = "";
+    tooltipEl.setAttribute("aria-hidden", "false");
   });
-
-  visibleLabels
-    .sort((a, b) => (a.point.y - b.point.y) || (a.point.x - b.point.x))
-    .forEach((label) => {
-      const minX = Math.floor(label.box.left / gridCellSize);
-      const maxX = Math.floor(label.box.right / gridCellSize);
-      const minY = Math.floor(label.box.top / gridCellSize);
-      const maxY = Math.floor(label.box.bottom / gridCellSize);
-
-      let collides = false;
-      for (let gx = minX - 1; gx <= maxX + 1 && !collides; gx += 1) {
-        for (let gy = minY - 1; gy <= maxY + 1 && !collides; gy += 1) {
-          const cell = placementGrid.get(`${gx}:${gy}`);
-          if (!cell) continue;
-          for (let i = 0; i < cell.length; i += 1) {
-            if (boxesOverlap(label.box, cell[i])) {
-              collides = true;
-              break;
-            }
-          }
-        }
-      }
-
-      if (collides) {
-        label.tooltipEl.style.display = "none";
-        label.tooltipEl.setAttribute("aria-hidden", "true");
-        return;
-      }
-
-      label.tooltipEl.style.display = "";
-      label.tooltipEl.setAttribute("aria-hidden", "false");
-
-      for (let gx = minX; gx <= maxX; gx += 1) {
-        for (let gy = minY; gy <= maxY; gy += 1) {
-          const key = `${gx}:${gy}`;
-          const cell = placementGrid.get(key);
-          if (cell) {
-            cell.push(label.box);
-          } else {
-            placementGrid.set(key, [label.box]);
-          }
-        }
-      }
-    });
 }
 
 function scheduleVisibleMarkerLabelsRefresh() {
