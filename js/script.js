@@ -21,13 +21,20 @@ async function initializeFirebase() {
     throw new Error("Feedback is unavailable while offline.");
   }
 
-  const [{ initializeApp }, authMod, firestoreMod] = await Promise.all([
+  const [{ initializeApp }, authMod, firestoreMod, appCheckMod] = await Promise.all([
     import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js"),
     import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js"),
-    import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js")
+    import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js"),
+    import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app-check.js")
   ]);
 
   const app = initializeApp(firebaseConfig);
+  if (appCheckMod) {
+    appCheckMod.initializeAppCheck(app, {
+      provider: new appCheckMod.ReCaptchaV3Provider("6LckRIcsAAAAABtcx9DepGiprCzFv_ex-5imoKGl"),
+      isTokenAutoRefreshEnabled: true
+    });
+  }
   auth = authMod.getAuth(app);
   googleProvider = new authMod.GoogleAuthProvider();
   db = firestoreMod.getFirestore(app);
