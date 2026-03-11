@@ -173,8 +173,10 @@ async function saveMarkerSuggestion(payload) {
 }
 document.getElementById("account-btn")?.addEventListener("click", async () => {
   try {
+    const wasAlreadySignedIn = Boolean(auth?.currentUser);
     const hasAccess = await requireMapSignIn({ prompt: true, allowGuest: false });
     if (!hasAccess) return;
+    if (!wasAlreadySignedIn) return;
     window.location.href = "account.html";
   } catch (e) {
     console.error(e);
