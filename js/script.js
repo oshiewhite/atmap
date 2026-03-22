@@ -1468,7 +1468,8 @@ const PLACE_TYPES = {
   campground:  { checkboxId: 'campground-checkbox',     icon: 'icons/campground.png',  label: 'Campground',     autoOnCityClick: true },
   shower:  { checkboxId: 'shower-checkbox',     icon: 'icons/shower.png',  label: 'Shower',     autoOnCityClick: true },
 buffet:  { checkboxId: 'buffet-checkbox',     icon: 'icons/buffet.png',  label: 'Buffet',     autoOnCityClick: true },
-
+fullresupply:  { checkboxId: 'fullresupply-checkbox',     icon: 'icons/fullresupply.png',  label: 'Full Food Resupply',     autoOnCityClick: true },
+partialresupply:  { checkboxId: 'partialresupply-checkbox',     icon: 'icons/partialresupply.png',  label: 'Minimal Food Resupply',     autoOnCityClick: true },
 
   // Transportation types (add/remove here only)
   shuttle:     { checkboxId: 'shuttle-checkbox',        icon: 'icons/shuttle.png',     label: 'Shuttle',        autoOnCityClick: false },
