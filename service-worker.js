@@ -1,7 +1,7 @@
 // service-worker.js
 
 // A version name that you can update when you change the cache contents.
-const CACHE_NAME = 'app-cache-v3';
+const CACHE_NAME = 'app-cache-v4';
 
 // Numbered GeoJSON segments available in data/*.geojson.
 const MAX_NUMBERED_GEOJSON = 350;
@@ -20,6 +20,7 @@ const OFFLINE_ASSETS = [
   'data/at.geojson',
   'data/at.kml',
   'data/at_full_gpx.zip',
+  'data/Approach Trail Coordinates.gpx',
   'data/mile_markers.csv',
   'data/resources.csv',
   'data/resupply.csv',
