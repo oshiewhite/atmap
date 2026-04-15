@@ -1,0 +1,188 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<gpx version="1.1" creator="GPS Visualizer https://www.gpsvisualizer.com/" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd http://www.garmin.com/xmlschemas/TrackPointExtension/v2 http://www.garmin.com/xmlschemas/TrackPointExtensionv2.xsd" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v2">
+<wpt lat="34.58788" lon="-84.237639">
+  <ele>860.0</ele>
+  <name>High Shoals Road</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>red-pin-down.png</sym>
+</wpt>
+<wpt lat="34.59135" lon="-84.23726">
+  <ele>912.0</ele>
+  <name>Campsite</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>campsite-24.png</sym>
+</wpt>
+<wpt lat="34.624779" lon="-84.191775">
+  <ele>1089.0</ele>
+  <name>Water 50 feet west-unreliable</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>water-24.png</sym>
+</wpt>
+<wpt lat="34.565362" lon="-84.242509">
+  <ele>805.0</ele>
+  <name>Amicalola Falls Lodge</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>lodging-24.png</sym>
+</wpt>
+<wpt lat="34.586559" lon="-84.239079">
+  <ele>831.0</ele>
+  <name>Campsite</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>campsite-24.png</sym>
+</wpt>
+<wpt lat="34.60464" lon="-84.21628">
+  <ele>1022.0</ele>
+  <name>Campsite</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>campsite-24.png</sym>
+</wpt>
+<wpt lat="34.601799" lon="-84.21901">
+  <ele>1028.0</ele>
+  <name>Jct trail to Len Foote Hike Inn-lime green trail</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>trailhead</sym>
+</wpt>
+<wpt lat="34.56623" lon="-84.24532">
+  <ele>679.0</ele>
+  <name>Base of 604 step climb on staircase</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>red-pin-down.png</sym>
+</wpt>
+<wpt lat="34.596529" lon="-84.22654">
+  <name>Frosty Mountain/Campsites</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>no_icon</sym>
+</wpt>
+<wpt lat="34.56718" lon="-84.24353">
+  <ele>783.0</ele>
+  <name>Parking</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>parking-24.png</sym>
+</wpt>
+<wpt lat="34.55808" lon="-84.24868">
+  <ele>569.0</ele>
+  <name>Max Epperson Shelter</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>shelter</sym>
+</wpt>
+<wpt lat="34.56743" lon="-84.24424">
+  <ele>773.0</ele>
+  <name>Falls overlook</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>binoculars</sym>
+</wpt>
+<wpt lat="34.557823" lon="-84.249532">
+  <ele>556.0</ele>
+  <name>Vistors Center</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>orange-pin.png</sym>
+</wpt>
+<wpt lat="34.62671" lon="-84.19388">
+  <ele>1144.0</ele>
+  <name>Springer Mountain</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>peak</sym>
+</wpt>
+<wpt lat="34.5995" lon="-84.22354">
+  <ele>976.0</ele>
+  <name>Old USFA 46</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>red-pin-down.png</sym>
+</wpt>
+<wpt lat="34.615309" lon="-84.1972">
+  <ele>945.0</ele>
+  <name>Black Gap Shelter Water</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>water-24.png</sym>
+</wpt>
+<wpt lat="34.563589" lon="-84.24696">
+  <ele>615.0</ele>
+  <name>Reflection Pond/Base of Amicalola Falls</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>red-pin-down.png</sym>
+</wpt>
+<wpt lat="34.59225" lon="-84.208489">
+  <ele>933.0</ele>
+  <name>Len Foote Hike Inn</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>lodging-24.png</sym>
+</wpt>
+<wpt lat="34.571509" lon="-84.24195">
+  <ele>792.0</ele>
+  <name>High Shoals road</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>red-pin-down.png</sym>
+</wpt>
+<wpt lat="34.57211" lon="-84.24281">
+  <ele>816.0</ele>
+  <name>Campsite</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>campsite-24.png</sym>
+</wpt>
+<wpt lat="34.59764" lon="-84.23039">
+  <ele>1014.0</ele>
+  <name>Campsite</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>campsite-24.png</sym>
+</wpt>
+<wpt lat="34.56854" lon="-84.24296">
+  <ele>793.0</ele>
+  <name>Amicalola Falls Lodge Road</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>red-pin-down.png</sym>
+</wpt>
+<wpt lat="34.617459" lon="-84.19845">
+  <ele>973.0</ele>
+  <name>Black Gap Shelter</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>shelter</sym>
+</wpt>
+<wpt lat="34.560979" lon="-84.24733">
+  <ele>587.0</ele>
+  <name>Top of the Falls Rd</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>red-pin-down.png</sym>
+</wpt>
+<wpt lat="34.5696" lon="-84.24168">
+  <ele>808.0</ele>
+  <name>Jct trail to Len Foote Hike Inn-lime green trail</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>trailhead</sym>
+</wpt>
+<wpt lat="34.57393" lon="-84.2439">
+  <ele>854.0</ele>
+  <name>Campsite</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>campsite-24.png</sym>
+</wpt>
+<wpt lat="34.61593" lon="-84.20733">
+  <ele>1023.0</ele>
+  <name>Spring 100 ft on side trail to-unreliable</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>water-24.png</sym>
+</wpt>
+<wpt lat="34.60869" lon="-84.214299">
+  <ele>934.0</ele>
+  <name>Nimblewill Gap/Amicalola Park Road</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>red-pin-down.png</sym>
+</wpt>
+<wpt lat="34.58165" lon="-84.24367">
+  <ele>876.0</ele>
+  <name>Campsite</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>campsite-24.png</sym>
+</wpt>
+<wpt lat="34.557899" lon="-84.24975">
+  <ele>554.0</ele>
+  <name>Approach Trail Southern Terminus</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>black-pin.png</sym>
+</wpt>
+<wpt lat="34.588389" lon="-84.23705">
+  <ele>879.0</ele>
+  <name>Campsite</name>
+  <desc>WhiteBlaze Pages © - www.whiteblazepages.com</desc>
+  <sym>campsite-24.png</sym>
+</wpt>
+</gpx>
