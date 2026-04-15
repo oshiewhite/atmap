@@ -1781,6 +1781,25 @@ withAppLoading("Loading map data…", () => fetch('data/at.geojson'))
 
     });
 
+withAppLoading("Loading map data…", () => fetch("data/Approach Trail Centerline.kml"))
+    .then(response => response.text())
+    .then(kmlText => {
+        const parser = new DOMParser();
+        const kmlDoc = parser.parseFromString(kmlText, "text/xml");
+        const approachTrailGeoJson = toGeoJSON.kml(kmlDoc);
+
+        L.geoJSON(approachTrailGeoJson, {
+            style: {
+                color: "#ff8c00",
+                weight: 4,
+                opacity: 0.9
+            }
+        }).addTo(map);
+    })
+    .catch(error => {
+        console.error("Failed to load approach trail centerline:", error);
+    });
+
 
 // Load mile markers from CSV and add text markers based on zoom level
 // =======================
