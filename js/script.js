@@ -1781,23 +1781,47 @@ withAppLoading("Loading map data…", () => fetch('data/at.geojson'))
 
     });
 
-withAppLoading("Loading map data…", () => fetch("data/Approach Trail Centerline.kml"))
-    .then(response => response.text())
-    .then(kmlText => {
-        const parser = new DOMParser();
-        const kmlDoc = parser.parseFromString(kmlText, "text/xml");
-        const approachTrailGeoJson = toGeoJSON.kml(kmlDoc);
+function addApproachTrailToMap(geojson) {
+    L.geoJSON(geojson, {
+        style: {
+            color: "#ff8c00",
+            weight: 4,
+            opacity: 0.9
+        }
+    }).addTo(map);
+}
 
-        L.geoJSON(approachTrailGeoJson, {
-            style: {
-                color: "#ff8c00",
-                weight: 4,
-                opacity: 0.9
-            }
-        }).addTo(map);
+withAppLoading("Loading map data…", () => fetch("data/Approach Trail Coordinates.gpx"))
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Unable to load Approach Trail Coordinates.gpx (${response.status})`);
+        }
+        return response.text();
+    })
+    .then(gpxText => {
+        const parser = new DOMParser();
+        const gpxDoc = parser.parseFromString(gpxText, "text/xml");
+        const approachTrailGeoJson = toGeoJSON.gpx(gpxDoc);
+        addApproachTrailToMap(approachTrailGeoJson);
     })
     .catch(error => {
-        console.error("Failed to load approach trail centerline:", error);
+        console.warn("Failed to load approach trail GPX, trying legacy KML:", error);
+        return withAppLoading("Loading map data…", () => fetch("data/Approach Trail Centerline.kml"))
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Unable to load Approach Trail Centerline.kml (${response.status})`);
+                }
+                return response.text();
+            })
+            .then(kmlText => {
+                const parser = new DOMParser();
+                const kmlDoc = parser.parseFromString(kmlText, "text/xml");
+                const approachTrailGeoJson = toGeoJSON.kml(kmlDoc);
+                addApproachTrailToMap(approachTrailGeoJson);
+            });
+    })
+    .catch(error => {
+        console.error("Failed to load approach trail centerline from GPX and KML:", error);
     });
 
 
