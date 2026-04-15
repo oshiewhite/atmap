@@ -1791,6 +1791,35 @@ function addApproachTrailToMap(geojson) {
     }).addTo(map);
 }
 
+function parseApproachTrailKml(kmlDoc) {
+    const coordinateNodes = kmlDoc.querySelectorAll("Placemark LineString coordinates");
+    const features = Array.from(coordinateNodes)
+        .map(node => node.textContent || "")
+        .map(text => text.trim())
+        .filter(Boolean)
+        .map(text => {
+            const coordinates = text
+                .split(/\s+/)
+                .map(pair => pair.split(",").map(Number))
+                .filter(parts => Number.isFinite(parts[0]) && Number.isFinite(parts[1]))
+                .map(parts => [parts[0], parts[1]]);
+
+            return coordinates.length > 1
+                ? {
+                    type: "Feature",
+                    properties: {},
+                    geometry: { type: "LineString", coordinates }
+                }
+                : null;
+        })
+        .filter(Boolean);
+
+    return {
+        type: "FeatureCollection",
+        features
+    };
+}
+
 withAppLoading("Loading map data…", () => fetch("data/Approach Trail Centerline.kml"))
     .then(response => {
         if (!response.ok) {
@@ -1801,7 +1830,15 @@ withAppLoading("Loading map data…", () => fetch("data/Approach Trail Centerlin
     .then(kmlText => {
         const parser = new DOMParser();
         const kmlDoc = parser.parseFromString(kmlText, "text/xml");
-        const approachTrailGeoJson = toGeoJSON.kml(kmlDoc);
+
+        const approachTrailGeoJson = (window.toGeoJSON && typeof window.toGeoJSON.kml === "function")
+            ? window.toGeoJSON.kml(kmlDoc)
+            : parseApproachTrailKml(kmlDoc);
+
+        if (!approachTrailGeoJson?.features?.length) {
+            throw new Error("No approach trail geometry found in KML.");
+        }
+
         addApproachTrailToMap(approachTrailGeoJson);
     })
     .catch(error => {
