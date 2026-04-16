@@ -950,6 +950,42 @@ function distanceSquared(a, b) {
   return dLat * dLat + dLng * dLng;
 }
 
+function normalizeApproachTrailElevationUnits(segment) {
+  if (!Array.isArray(segment) || segment.length < 3) return segment;
+
+  // Some source exports have a late segment where altitude switches from
+  // meters to feet (for example ~806 -> 2325 at one adjacent point).
+  // Detect that discontinuity and convert the tail back to meters.
+  const FEET_PER_METER = 3.28084;
+  const METERS_TO_FEET_SWITCH_DELTA = 900;
+  const MAX_REASONABLE_METERS = 1500;
+  const MIN_REASONABLE_FEET = 1700;
+
+  for (let i = 1; i < segment.length; i++) {
+    const prev = segment[i - 1];
+    const curr = segment[i];
+    if (!Number.isFinite(prev?.elev) || !Number.isFinite(curr?.elev)) continue;
+
+    const rawJump = curr.elev - prev.elev;
+    if (rawJump < METERS_TO_FEET_SWITCH_DELTA) continue;
+    if (prev.elev > MAX_REASONABLE_METERS || curr.elev < MIN_REASONABLE_FEET) continue;
+
+    const convertedJump = Math.abs((curr.elev / FEET_PER_METER) - prev.elev);
+    const rawJumpAbs = Math.abs(rawJump);
+    if (convertedJump >= 250 || convertedJump >= (rawJumpAbs * 0.25)) continue;
+
+    return segment.map((point, idx) => {
+      if (idx < i) return point;
+      return {
+        ...point,
+        elev: point.elev / FEET_PER_METER
+      };
+    });
+  }
+
+  return segment;
+}
+
 function parseApproachTrailPointsFromKml(kmlText, atStartPoint) {
   const parser = new DOMParser();
   const kmlDoc = parser.parseFromString(kmlText, "text/xml");
@@ -975,12 +1011,15 @@ function parseApproachTrailPointsFromKml(kmlText, atStartPoint) {
   if (!parsedSegments.length) return [];
 
   const segments = parsedSegments.map(segment => {
-    if (!atStartPoint) return segment;
-    const first = segment[0];
-    const last = segment[segment.length - 1];
+    const normalizedSegment = normalizeApproachTrailElevationUnits(segment);
+    if (!atStartPoint) return normalizedSegment;
+    const first = normalizedSegment[0];
+    const last = normalizedSegment[normalizedSegment.length - 1];
     const firstDist = distanceSquared(first, atStartPoint);
     const lastDist = distanceSquared(last, atStartPoint);
-    return firstDist <= lastDist ? segment : segment.slice().reverse();
+    return firstDist <= lastDist
+      ? normalizedSegment
+      : normalizedSegment.slice().reverse();
   });
 
   const rawStartElev = segments[0]?.[0]?.elev;
