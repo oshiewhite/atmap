@@ -444,6 +444,7 @@ const SAVED_VIEW_STORAGE_KEY = "atmap-saved-view";
 let showMarkerLabels = localStorage.getItem(MARKER_LABELS_STORAGE_KEY) === "true";
 const labelManagedMarkers = new Set();
 let pendingLabelOverlapRefresh = false;
+const MARKER_LABEL_VERTICAL_OFFSET = 18;
 
 function refreshVisibleMarkerLabels() {
   pendingLabelOverlapRefresh = false;
@@ -464,7 +465,7 @@ function refreshVisibleMarkerLabels() {
     marker.bindTooltip(marker.__alwaysLabelText, {
       permanent: true,
       direction: "top",
-      offset: [0, -26],
+      offset: [0, -MARKER_LABEL_VERTICAL_OFFSET],
       className: "marker-name-label"
     });
   }
@@ -496,8 +497,8 @@ function refreshVisibleMarkerLabels() {
     const box = {
       left: point.x - labelWidth / 2,
       right: point.x + labelWidth / 2,
-      top: point.y - 26 - labelHeight,
-      bottom: point.y - 26
+      top: point.y - MARKER_LABEL_VERTICAL_OFFSET - labelHeight,
+      bottom: point.y - MARKER_LABEL_VERTICAL_OFFSET
     };
 
     if (box.left < 0 || box.top < 0 || box.right > mapSize.x || box.bottom > mapSize.y) {
