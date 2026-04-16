@@ -919,6 +919,7 @@ resetSuggestionForm();
 // ==================================================
 let TRAIL_POINTS = [];  // { lat, lng, elev, mile }
 let elevationChartReady = false;
+const APPROACH_TRAIL_KML_URL = "data/Approach Trail Centerline.kml";
 let ELEV_DRAW = {
   points: [],      // points used for last draw
   minMile: 0,
@@ -928,6 +929,92 @@ let ELEV_DRAW = {
   plotW: 1,
   cssW: 1
 };
+
+function haversineMiles(lat1, lng1, lat2, lng2) {
+  const toRad = deg => (deg * Math.PI) / 180;
+  const Rm = 6371000;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const meters = Rm * c;
+  return meters / 1609.344;
+}
+
+function distanceSquared(a, b) {
+  const dLat = a.lat - b.lat;
+  const dLng = a.lng - b.lng;
+  return dLat * dLat + dLng * dLng;
+}
+
+function parseApproachTrailPointsFromKml(kmlText, atStartPoint) {
+  const parser = new DOMParser();
+  const kmlDoc = parser.parseFromString(kmlText, "text/xml");
+  const coordinateNodes = kmlDoc.querySelectorAll("Placemark LineString coordinates");
+  if (!coordinateNodes.length) return [];
+
+  const parsedSegments = Array.from(coordinateNodes)
+    .map(node => (node.textContent || "").trim())
+    .filter(Boolean)
+    .map(text => {
+      return text
+        .split(/\s+/)
+        .map(token => token.split(",").map(Number))
+        .filter(parts =>
+          Number.isFinite(parts[0]) &&
+          Number.isFinite(parts[1]) &&
+          Number.isFinite(parts[2])
+        )
+        .map(parts => ({ lng: parts[0], lat: parts[1], elev: parts[2] }));
+    })
+    .filter(segment => segment.length > 1);
+
+  if (!parsedSegments.length) return [];
+
+  const segments = parsedSegments.map(segment => {
+    if (!atStartPoint) return segment;
+    const first = segment[0];
+    const last = segment[segment.length - 1];
+    const firstDist = distanceSquared(first, atStartPoint);
+    const lastDist = distanceSquared(last, atStartPoint);
+    return firstDist <= lastDist ? segment : segment.slice().reverse();
+  });
+
+  const rawStartElev = segments[0]?.[0]?.elev;
+  const atStartElev = atStartPoint?.elev;
+  const ratio = Number.isFinite(rawStartElev) && Number.isFinite(atStartElev)
+    ? (atStartElev / rawStartElev)
+    : NaN;
+  const elevScale = Number.isFinite(ratio) && ratio > 2.5 && ratio < 3.8
+    ? 3.28084
+    : 1;
+
+  let cumulativeMiles = 0;
+  const out = [];
+  let prev = null;
+
+  for (const segment of segments) {
+    for (let i = 0; i < segment.length; i++) {
+      const p = segment[i];
+      if (prev && p.lat === prev.lat && p.lng === prev.lng) continue;
+      if (prev) {
+        cumulativeMiles += haversineMiles(prev.lat, prev.lng, p.lat, p.lng);
+      }
+      out.push({
+        lat: p.lat,
+        lng: p.lng,
+        elev: p.elev * elevScale,
+        mile: (atStartPoint?.mile ?? 0) - cumulativeMiles
+      });
+      prev = p;
+    }
+  }
+
+  return out;
+}
 
 
 function parseTrailPointsCsv(text) {
@@ -974,14 +1061,33 @@ function parseTrailPointsCsv(text) {
 async function loadTrailPointsOnce() {
   if (elevationChartReady) return;
 
-  // Update path if needed:
-  const url = "data/trail_points.csv";
+  const trailPointsUrl = "data/trail_points.csv";
 
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`Failed to load ${url} (HTTP ${r.status})`);
+  const r = await fetch(trailPointsUrl);
+  if (!r.ok) throw new Error(`Failed to load ${trailPointsUrl} (HTTP ${r.status})`);
 
   const text = await r.text();
-  TRAIL_POINTS = parseTrailPointsCsv(text);
+  const mainTrailPoints = parseTrailPointsCsv(text);
+
+  let approachTrailPoints = [];
+  try {
+    const approachResponse = await fetch(APPROACH_TRAIL_KML_URL);
+    if (!approachResponse.ok) {
+      throw new Error(`HTTP ${approachResponse.status}`);
+    }
+
+    const approachKmlText = await approachResponse.text();
+    const atStartPoint = mainTrailPoints.find(p => p.mile === 0) || mainTrailPoints[0];
+    approachTrailPoints = parseApproachTrailPointsFromKml(approachKmlText, atStartPoint);
+    if (!approachTrailPoints.length) {
+      console.warn("[elevation] Approach Trail KML loaded but no elevation coordinates were found.");
+    }
+  } catch (error) {
+    console.warn("[elevation] Unable to load approach trail elevation points:", error);
+  }
+
+  TRAIL_POINTS = mainTrailPoints.concat(approachTrailPoints);
+  TRAIL_POINTS.sort((a, b) => a.mile - b.mile);
 
   elevationChartReady = true;
   console.log("[elevation] loaded points:", TRAIL_POINTS.length);
@@ -1820,7 +1926,7 @@ function parseApproachTrailKml(kmlDoc) {
     };
 }
 
-withAppLoading("Loading map data…", () => fetch("data/Approach Trail Centerline.kml"))
+withAppLoading("Loading map data…", () => fetch(APPROACH_TRAIL_KML_URL))
     .then(response => {
         if (!response.ok) {
             throw new Error(`Unable to load Approach Trail Centerline.kml (${response.status})`);
