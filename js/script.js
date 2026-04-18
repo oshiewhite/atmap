@@ -451,6 +451,7 @@ const hiddenMarkers = new Set();
 let isHideModeActive = false;
 let pendingLabelOverlapRefresh = false;
 const MARKER_LABEL_VERTICAL_OFFSET = 18;
+const MARKER_LABEL_MIN_VISIBLE_FRACTION = 0.2;
 
 function applyHiddenMarkerState(marker) {
   if (!marker?.setOpacity) return;
@@ -582,7 +583,11 @@ function refreshVisibleMarkerLabels() {
       bottom: point.y - MARKER_LABEL_VERTICAL_OFFSET
     };
 
-    if (box.left < 0 || box.top < 0 || box.right > mapSize.x || box.bottom > mapSize.y) {
+    const visibleWidth = Math.max(0, Math.min(box.right, mapSize.x) - Math.max(box.left, 0));
+    const visibleHeight = Math.max(0, Math.min(box.bottom, mapSize.y) - Math.max(box.top, 0));
+    const visibleAreaRatio = (visibleWidth * visibleHeight) / (labelWidth * labelHeight);
+
+    if (visibleAreaRatio < MARKER_LABEL_MIN_VISIBLE_FRACTION) {
       tooltipEl.style.display = "none";
       tooltipEl.setAttribute("aria-hidden", "true");
       return;
