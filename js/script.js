@@ -436,6 +436,9 @@ const themeToggleCheckbox = document.getElementById("theme-toggle-checkbox");
 const markerLabelsCheckbox = document.getElementById("marker-labels-checkbox");
 const saveViewBtn = document.getElementById("save-view-btn");
 const loadViewBtn = document.getElementById("load-view-btn");
+const startHideModeBtn = document.getElementById("start-hide-mode-btn");
+const exitHideModeBtn = document.getElementById("exit-hide-mode-btn");
+const hideModeStatus = document.getElementById("hide-mode-status");
 
 const THEME_STORAGE_KEY = "atmap-theme";
 const MARKER_LABELS_STORAGE_KEY = "atmap-show-marker-labels";
@@ -443,8 +446,78 @@ const SAVED_VIEW_STORAGE_KEY = "atmap-saved-view";
 
 let showMarkerLabels = localStorage.getItem(MARKER_LABELS_STORAGE_KEY) === "true";
 const labelManagedMarkers = new Set();
+const hideModeManagedMarkers = new Set();
+const hiddenMarkers = new Set();
+let isHideModeActive = false;
 let pendingLabelOverlapRefresh = false;
 const MARKER_LABEL_VERTICAL_OFFSET = 18;
+
+function applyHiddenMarkerState(marker) {
+  if (!marker?.setOpacity) return;
+  marker.setOpacity(0);
+  marker.__isHiddenByMode = true;
+
+  const iconEl = marker.getElement?.();
+  if (iconEl) iconEl.style.pointerEvents = "none";
+
+  if (marker.getTooltip?.()) {
+    marker.closeTooltip();
+    marker.unbindTooltip();
+  }
+}
+
+function hideMarker(marker) {
+  if (!marker || hiddenMarkers.has(marker)) return;
+  hiddenMarkers.add(marker);
+  applyHiddenMarkerState(marker);
+}
+
+function updateHideModeUi() {
+  if (startHideModeBtn) {
+    startHideModeBtn.disabled = isHideModeActive;
+    startHideModeBtn.textContent = isHideModeActive ? "Hide Mode On" : "Hide Mode";
+  }
+  if (exitHideModeBtn) {
+    exitHideModeBtn.hidden = !isHideModeActive;
+  }
+  if (hideModeStatus) {
+    if (isHideModeActive) {
+      hideModeStatus.textContent = "Hide mode is on. Click markers on the map to hide them.";
+    } else {
+      hideModeStatus.textContent = hiddenMarkers.size
+        ? `Hide mode is off. ${hiddenMarkers.size} marker(s) are hidden.`
+        : "Hide mode is off.";
+    }
+  }
+}
+
+function registerHideableMarker(marker) {
+  if (!marker || hideModeManagedMarkers.has(marker)) return marker;
+
+  hideModeManagedMarkers.add(marker);
+
+  marker.on("preclick", (event) => {
+    if (!isHideModeActive) return;
+    hideMarker(marker);
+    updateHideModeUi();
+    marker.closePopup?.();
+    if (event?.originalEvent) L.DomEvent.stop(event.originalEvent);
+  });
+
+  marker.on("add", () => {
+    if (hiddenMarkers.has(marker) || marker.__isHiddenByMode) {
+      applyHiddenMarkerState(marker);
+    }
+  });
+
+  return marker;
+}
+
+const originalLeafletMarkerFactory = L.marker.bind(L);
+L.marker = function (...args) {
+  const marker = originalLeafletMarkerFactory(...args);
+  return registerHideableMarker(marker);
+};
 
 function refreshVisibleMarkerLabels() {
   pendingLabelOverlapRefresh = false;
@@ -618,6 +691,17 @@ function loadSavedView() {
 
 saveViewBtn?.addEventListener("click", saveCurrentView);
 loadViewBtn?.addEventListener("click", loadSavedView);
+startHideModeBtn?.addEventListener("click", () => {
+  isHideModeActive = true;
+  updateHideModeUi();
+});
+
+exitHideModeBtn?.addEventListener("click", () => {
+  isHideModeActive = false;
+  updateHideModeUi();
+});
+
+updateHideModeUi();
 
 function setSidebarOpen(isOpen){
   sidebar.classList.toggle("open", isOpen);
