@@ -466,6 +466,10 @@ function applyHiddenMarkerState(marker) {
   }
 }
 
+function isMarkerHiddenByMode(marker) {
+  return Boolean(marker && (marker.__isHiddenByMode || hiddenMarkers.has(marker)));
+}
+
 function hideMarker(marker) {
   if (!marker || hiddenMarkers.has(marker)) return;
   hiddenMarkers.add(marker);
@@ -545,6 +549,10 @@ function refreshVisibleMarkerLabels() {
 
   labelManagedMarkers.forEach((marker) => {
     if (!marker || !marker._map || !marker.__alwaysLabelText) return;
+    if (isMarkerHiddenByMode(marker)) {
+      unbindMarkerLabel(marker);
+      return;
+    }
 
     const latLng = marker.getLatLng();
     if (!latLng || !bounds.contains(latLng)) {
