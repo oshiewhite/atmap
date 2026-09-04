@@ -52,8 +52,37 @@ async function loadSharedEntries() {
   if(!snap.exists()) throw new Error("This share link is invalid or has been removed.");
   const data=snap.data(); entries=Array.isArray(data.entries)?data.entries:[]; $("page-title").textContent=data.groupName || "Shared trail journal"; renderEntries();
 }
-function waitForAuth() { return new Promise(resolve=>{ const off=onAuthStateChanged(auth,u=>{off(); resolve(u);}); }); }
-async function requireUser() { user=await waitForAuth(); if(!user){ try{await signInWithPopup(auth,provider); user=auth.currentUser;}catch{ location.href="index.html"; } } return user; }
+function waitForAuth() { return new Promise(resolve=>{ let off=()=>{}; off=onAuthStateChanged(auth,u=>{off(); resolve(u);}); }); }
+async function requireUser() {
+  user=await waitForAuth();
+  if(!user) {
+    $("journal-signin-btn").hidden=false;
+    $("new-entry-btn").hidden=true;
+    $("manage-group-btn").hidden=true;
+    setStatus("Sign in with Google to open your private journal.");
+  }
+  return user;
+}
+
+$("journal-signin-btn").addEventListener("click",async()=>{
+  const button=$("journal-signin-btn");
+  button.disabled=true;
+  setStatus("Signing you in…");
+  try {
+    await signInWithPopup(auth,provider);
+    user=auth.currentUser;
+    if(!user) throw new Error("Google sign-in did not complete.");
+    button.hidden=true;
+    $("new-entry-btn").hidden=false;
+    $("manage-group-btn").hidden=false;
+    await loadPrivateEntries();
+  } catch(e) {
+    console.error(e);
+    setStatus(e?.code==="auth/popup-closed-by-user" ? "Sign-in was cancelled. You are still on My Journal." : "Sign-in failed. Please try again.");
+  } finally {
+    button.disabled=false;
+  }
+});
 
 function positionDraft(lat,lng) {
   if(draftMarker) map.removeLayer(draftMarker);
@@ -101,7 +130,7 @@ $("manage-group-btn").addEventListener("click",async()=>{await loadGroup(); $("g
 $("add-member-btn").addEventListener("click",()=>{const email=$("member-email").value.trim().toLowerCase(); if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){$("group-error").textContent="Enter a valid email address.";return;} if(!members.includes(email))members.push(email); $("member-email").value=""; $("group-error").textContent=""; renderMembers();});
 $("member-list").addEventListener("click",e=>{const button=e.target.closest("[data-remove]");if(button){members.splice(Number(button.dataset.remove),1);renderMembers();}});
 $("copy-link-btn").addEventListener("click",async()=>{if(group?.shareToken){await navigator.clipboard.writeText(shareUrl());$("copy-link-btn").textContent="Copied";setTimeout(()=>$("copy-link-btn").textContent="Copy",1500);}});
-async function syncSharedJournal() { if(!group?.shareToken)return; await setDoc(doc(db,"sharedJournals",group.shareToken),{ownerUid:user.uid,groupName:group.name,memberEmails:group.memberEmails,entries:entries.map(serializeEntry),updatedAt:serverTimestamp()}); }
+async function syncSharedJournal() { if(!group?.shareToken)return; await setDoc(doc(db,"sharedJournals",group.shareToken),{ownerUid:user.uid,groupName:group.name,entries:entries.map(serializeEntry),updatedAt:serverTimestamp()}); }
 $("save-group-btn").addEventListener("click",async()=>{const button=$("save-group-btn");button.disabled=true;try{const token=group?.shareToken||randomToken();group={name:$("group-name").value.trim()||"Shared trail journal",memberEmails:[...members],shareToken:token};await setDoc(doc(db,"users",user.uid,"journalGroups","default"),{...group,ownerUid:user.uid,updatedAt:serverTimestamp()},{merge:true});await syncSharedJournal();$("share-link").value=shareUrl();}catch(e){console.error(e);$("group-error").textContent=e.message||"Could not save this group.";}finally{button.disabled=false;}});
 
 (async()=>{try{if(readOnly)await loadSharedEntries();else{await requireUser();if(!user)return;await loadPrivateEntries();}}catch(e){console.error(e);setStatus(e.message||"Unable to load this journal.");}})();
