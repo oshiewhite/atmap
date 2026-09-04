@@ -22,6 +22,8 @@ const readOnly = Boolean(shareToken);
 const map = L.map("journal-map").setView([39.2,-76.7],5);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom:19, attribution:"&copy; OpenStreetMap contributors" }).addTo(map);
 const journalLayer = L.layerGroup().addTo(map);
+const trailLayer = L.layerGroup().addTo(map);
+const mileLayer = L.layerGroup().addTo(map);
 const pinIcon = L.divIcon({ className:`journal-pin${readOnly ? " shared" : ""}`, iconSize:[26,26], iconAnchor:[13,26] });
 const $ = (id) => document.getElementById(id);
 let user = null, entries = [], draftMarker = null, group = null, members = [];
@@ -32,6 +34,38 @@ function asDate(value) { return value?.toDate ? value.toDate() : new Date(value)
 function setStatus(text) { $("status").textContent=text; $("status").hidden=!text; }
 function randomToken() { const bytes=crypto.getRandomValues(new Uint8Array(24)); return Array.from(bytes,b=>b.toString(16).padStart(2,"0")).join(""); }
 function serializeEntry(entry) { return { id:entry.id, title:entry.title, body:entry.body, lat:entry.lat, lng:entry.lng, occurredAt:asDate(entry.occurredAt).toISOString(), photoUrls:entry.photoUrls || [] }; }
+
+let mileMarkers = [];
+function renderMileMarkers() {
+  mileLayer.clearLayers();
+  const zoom=map.getZoom();
+  let step=250;
+  if(zoom>=13) step=1;
+  else if(zoom>=10) step=5;
+  else if(zoom>=8) step=25;
+  else if(zoom>=7) step=50;
+  else if(zoom>=6) step=100;
+  const bounds=map.getBounds();
+  mileMarkers.forEach(point=>{
+    if(point.mile%step!==0 || !bounds.contains([point.lat,point.lng])) return;
+    const icon=L.divIcon({className:"mile-marker-label",html:`<span>${point.mile}</span>`,iconSize:[34,20],iconAnchor:[17,10]});
+    L.marker([point.lat,point.lng],{icon,interactive:false}).addTo(mileLayer);
+  });
+}
+async function loadTrailContext() {
+  try {
+    const [trailResponse,milesResponse]=await Promise.all([fetch("data/at.geojson"),fetch("data/mile_markers.csv")]);
+    if(!trailResponse.ok||!milesResponse.ok) throw new Error("Trail data could not be loaded.");
+    const trail=L.geoJSON(await trailResponse.json(),{style:{color:"#486ee0",weight:4,opacity:.9}}).addTo(trailLayer);
+    const rows=(await milesResponse.text()).trim().split(/\r?\n/).slice(1);
+    mileMarkers=rows.map(row=>{const [lat,lng,,mile]=row.split(",");return {lat:Number(lat),lng:Number(lng),mile:Number(mile)};}).filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lng)&&Number.isFinite(p.mile));
+    renderMileMarkers();
+    if(!entries.length&&trail.getBounds().isValid()) map.fitBounds(trail.getBounds(),{padding:[20,20]});
+  } catch(error) {
+    console.error("Unable to load trail context:",error);
+  }
+}
+map.on("zoomend moveend",renderMileMarkers);
 
 function popupHtml(entry) {
   const photos=(entry.photoUrls||[]).map(url=>`<a href="${escapeHtml(url)}" target="_blank" rel="noopener"><img src="${escapeHtml(url)}" alt="Journal attachment"></a>`).join("");
@@ -128,13 +162,24 @@ async function uploadPhotos(files,entryId) {
 async function saveEntry() {
   const lat=Number($("entry-lat").value),lng=Number($("entry-lng").value),title=$("entry-title").value.trim(),body=$("entry-body").value.trim(),when=new Date($("entry-date").value);
   if(!title||!body||!Number.isFinite(lat)||!Number.isFinite(lng)||Number.isNaN(when.getTime())) { $("entry-error").textContent="Add a title, journal entry, date, and valid pin location."; return; }
-  const button=$("save-entry-btn"); button.disabled=true; $("entry-error").textContent="";
+  if(!user) { $("entry-error").textContent="Your session is unavailable. Return to My Account and try again."; return; }
+  const button=$("save-entry-btn"); const originalText=button.textContent; button.disabled=true; button.textContent="Saving…"; $("entry-error").textContent="";
   try { const id=$("entry-id").value; const existing=entries.find(e=>e.id===id); const entryRef=id?doc(db,"users",user.uid,"journalEntries",id):doc(collection(db,"users",user.uid,"journalEntries"));
     const photoUrls=[...(existing?.photoUrls||[]),...await uploadPhotos($("entry-photos").files,entryRef.id)];
     const payload={title,body,lat,lng,occurredAt:Timestamp.fromDate(when),photoUrls,ownerUid:user.uid,updatedAt:serverTimestamp()};
     if(id) await updateDoc(entryRef,payload); else await setDoc(entryRef,{...payload,createdAt:serverTimestamp()});
     $("entry-dialog").close(); await loadPrivateEntries(); await syncSharedJournal();
-  } catch(e) { console.error(e); $("entry-error").textContent=e.message||"Could not save this entry."; } finally { button.disabled=false; }
+  } catch(e) {
+    console.error(e);
+    const message=e?.code==="permission-denied"
+      ? "Firebase blocked this save. Publish the new Firestore rules, then try again."
+      : e?.code==="storage/unauthorized"
+        ? "Firebase Storage blocked the picture upload. Publish the new Storage rules, then try again."
+        : e.message||"Could not save this entry.";
+    $("entry-error").textContent=message;
+    $("entry-error").scrollIntoView({behavior:"smooth",block:"center"});
+    alert(message);
+  } finally { button.disabled=false; button.textContent=originalText; }
 }
 $("save-entry-btn").addEventListener("click",saveEntry);
 $("delete-entry-btn").addEventListener("click",async()=>{ const id=$("entry-id").value; if(!id||!confirm("Delete this journal entry?"))return; await deleteDoc(doc(db,"users",user.uid,"journalEntries",id)); $("entry-dialog").close(); await loadPrivateEntries(); await syncSharedJournal(); });
@@ -149,5 +194,5 @@ $("copy-link-btn").addEventListener("click",async()=>{if(group?.shareToken){awai
 async function syncSharedJournal() { if(!group?.shareToken)return; await setDoc(doc(db,"sharedJournals",group.shareToken),{ownerUid:user.uid,groupName:group.name,entries:entries.map(serializeEntry),updatedAt:serverTimestamp()}); }
 $("save-group-btn").addEventListener("click",async()=>{const button=$("save-group-btn");button.disabled=true;try{const token=group?.shareToken||randomToken();group={name:$("group-name").value.trim()||"Shared trail journal",memberEmails:[...members],shareToken:token};await setDoc(doc(db,"users",user.uid,"journalGroups","default"),{...group,ownerUid:user.uid,updatedAt:serverTimestamp()},{merge:true});await syncSharedJournal();$("share-link").value=shareUrl();}catch(e){console.error(e);$("group-error").textContent=e.message||"Could not save this group.";}finally{button.disabled=false;}});
 
-(async()=>{try{if(readOnly)await loadSharedEntries();else{await requireUser();if(!user)return;await loadPrivateEntries();}}catch(e){console.error(e);setStatus(e.message||"Unable to load this journal.");}})();
+(async()=>{loadTrailContext();try{if(readOnly)await loadSharedEntries();else{await requireUser();if(!user)return;await loadPrivateEntries();}}catch(e){console.error(e);setStatus(e.message||"Unable to load this journal.");}})();
 
