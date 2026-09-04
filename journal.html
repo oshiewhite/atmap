@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Journal | Appalachian Trail Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="css/journal.css" />
+</head>
+<body>
+  <header class="journal-header">
+    <div>
+      <p class="eyebrow">Appalachian Trail Map</p>
+      <h1 id="page-title">My Journal</h1>
+      <p id="page-subtitle">Your private trail memories, all in one place.</p>
+    </div>
+    <div class="header-actions">
+      <button id="new-entry-btn" class="btn btn-primary" type="button">+ New journal pin</button>
+      <button id="manage-group-btn" class="btn" type="button">Share group</button>
+      <a class="btn" href="index.html">Back to map</a>
+    </div>
+  </header>
+
+  <main class="journal-layout">
+    <div id="journal-map" aria-label="Journal map"></div>
+    <aside id="entry-list-panel" class="entry-list-panel">
+      <div class="panel-heading">
+        <h2>Journal entries</h2>
+        <span id="entry-count">0</span>
+      </div>
+      <div id="status" class="status" role="status">Loading…</div>
+      <div id="entry-list"></div>
+    </aside>
+  </main>
+
+  <dialog id="entry-dialog">
+    <form id="entry-form" method="dialog">
+      <div class="dialog-heading">
+        <h2 id="entry-dialog-title">New journal pin</h2>
+        <button class="icon-btn" value="cancel" aria-label="Close" type="submit">×</button>
+      </div>
+      <input id="entry-id" type="hidden" />
+      <fieldset id="location-chooser">
+        <legend>Choose the pin location</legend>
+        <div class="choice-grid">
+          <button id="use-location-btn" class="choice-btn" type="button">Use my current location</button>
+          <button id="place-pin-btn" class="choice-btn" type="button">Place it on the map</button>
+        </div>
+        <p class="help">After either choice, drag the pin to make a precise adjustment.</p>
+      </fieldset>
+      <div class="coordinate-row">
+        <label>Latitude <input id="entry-lat" type="number" step="any" min="-90" max="90" required /></label>
+        <label>Longitude <input id="entry-lng" type="number" step="any" min="-180" max="180" required /></label>
+      </div>
+      <label>Title <input id="entry-title" maxlength="120" required placeholder="A memorable place" /></label>
+      <label>Date and time <input id="entry-date" type="datetime-local" required /></label>
+      <label>Journal entry <textarea id="entry-body" rows="7" maxlength="12000" required placeholder="What happened here?"></textarea></label>
+      <label>Pictures <input id="entry-photos" type="file" accept="image/*" multiple /></label>
+      <div id="existing-photos" class="photo-grid"></div>
+      <p id="entry-error" class="error" role="alert"></p>
+      <div class="dialog-actions">
+        <button id="delete-entry-btn" class="btn btn-danger" type="button" hidden>Delete</button>
+        <span class="spacer"></span>
+        <button class="btn" value="cancel" type="submit">Cancel</button>
+        <button id="save-entry-btn" class="btn btn-primary" type="button">Save entry</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="group-dialog">
+    <form id="group-form" method="dialog">
+      <div class="dialog-heading">
+        <h2>Journal sharing group</h2>
+        <button class="icon-btn" value="cancel" aria-label="Close" type="submit">×</button>
+      </div>
+      <p>Add the email addresses of people who may receive your private share link. They do not need an account; anyone with the link can view the shared journal.</p>
+      <label>Group name <input id="group-name" maxlength="80" value="Trail family & friends" /></label>
+      <label>Add an email
+        <span class="inline-input"><input id="member-email" type="email" placeholder="friend@example.com" /><button id="add-member-btn" class="btn" type="button">Add</button></span>
+      </label>
+      <div id="member-list" class="member-list"></div>
+      <label>Read-only share link
+        <span class="inline-input"><input id="share-link" readonly /><button id="copy-link-btn" class="btn" type="button">Copy</button></span>
+      </label>
+      <p class="help">Email delivery is not automatic. Copy this link into an email or message to the listed people.</p>
+      <p id="group-error" class="error" role="alert"></p>
+      <div class="dialog-actions">
+        <span class="spacer"></span>
+        <button class="btn" value="cancel" type="submit">Close</button>
+        <button id="save-group-btn" class="btn btn-primary" type="button">Save group</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="module" src="js/journal.js"></script>
+</body>
+</html>
+
