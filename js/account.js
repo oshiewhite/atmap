@@ -221,7 +221,7 @@ async function openJournalInPlace() {
   document.body.className = "";
   document.body.replaceChildren(...content);
   history.replaceState(null, "", "account.html#journal");
-  await import("./journal.js?v=10");
+  await import("./journal.js?v=13");
 }
 
 /* ======================
