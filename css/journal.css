@@ -45,6 +45,8 @@ fieldset { border:1px solid #d0d8d1; border-radius:10px; }
 .member-chip button { border:0; background:transparent; color:#912323; cursor:pointer; font-weight:800; }
 .journal-pin { background:var(--green); border:3px solid #fff; border-radius:50% 50% 50% 0; width:26px!important; height:26px!important; transform:rotate(-45deg); box-shadow:0 2px 8px rgba(0,0,0,.35); }
 .journal-pin.shared { background:#725a2d; }
+.mile-marker-label { background:transparent; border:0; }
+.mile-marker-label span { display:block; width:max-content; min-width:28px; padding:2px 5px; border:1px solid #42536f; border-radius:5px; background:rgba(255,255,255,.88); color:#17243a; font-size:11px; font-weight:800; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,.2); }
 .leaflet-popup-content h3 { margin:0 0 4px; font-family:Georgia,serif; }
 .leaflet-popup-content time { color:#657269; font-size:12px; }
 .popup-photos { display:grid; grid-template-columns:repeat(2,1fr); gap:5px; margin-top:8px; }
