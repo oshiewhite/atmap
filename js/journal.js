@@ -141,7 +141,7 @@ $("delete-entry-btn").addEventListener("click",async()=>{ const id=$("entry-id")
 
 async function loadGroup() { const snap=await getDoc(doc(db,"users",user.uid,"journalGroups","default")); group=snap.exists()?snap.data():null; members=group?.memberEmails||[]; }
 function renderMembers(){ $("member-list").innerHTML=members.map((email,i)=>`<div class="member-chip"><span>${escapeHtml(email)}</span><button type="button" data-remove="${i}" aria-label="Remove ${escapeHtml(email)}">Remove</button></div>`).join(""); }
-function shareUrl(){return group?.shareToken?`${location.origin}${location.pathname}?share=${encodeURIComponent(group.shareToken)}`:"Save the group to create a link";}
+function shareUrl(){return group?.shareToken?`${new URL("journal.html",location.href).href.split("?")[0]}?share=${encodeURIComponent(group.shareToken)}`:"Save the group to create a link";}
 $("manage-group-btn").addEventListener("click",async()=>{await loadGroup(); $("group-name").value=group?.name||"Trail family & friends"; renderMembers(); $("share-link").value=shareUrl(); $("group-error").textContent=""; $("group-dialog").showModal();});
 $("add-member-btn").addEventListener("click",()=>{const email=$("member-email").value.trim().toLowerCase(); if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){$("group-error").textContent="Enter a valid email address.";return;} if(!members.includes(email))members.push(email); $("member-email").value=""; $("group-error").textContent=""; renderMembers();});
 $("member-list").addEventListener("click",e=>{const button=e.target.closest("[data-remove]");if(button){members.splice(Number(button.dataset.remove),1);renderMembers();}});
