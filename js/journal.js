@@ -1,7 +1,7 @@
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { getFirestore, collection, doc, addDoc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
 
 const firebaseConfig = { apiKey:"AIzaSyBuER6gwaNw4om3OCHkwK7nIETeroG-vIs", authDomain:"at-map-tmc.firebaseapp.com", projectId:"at-map-tmc", storageBucket:"at-map-tmc.firebasestorage.app", messagingSenderId:"862190385314", appId:"1:862190385314:web:f7fbf6a9eed1061231fffb" };
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
@@ -156,8 +156,41 @@ $("place-pin-btn").addEventListener("click",()=>{ $("entry-dialog").close(); set
 [$("entry-lat"),$("entry-lng")].forEach(el=>el.addEventListener("change",()=>{const lat=Number($("entry-lat").value),lng=Number($("entry-lng").value); if(Number.isFinite(lat)&&Number.isFinite(lng))positionDraft(lat,lng);}));
 $("entry-dialog").addEventListener("close",()=>{if(draftMarker){map.removeLayer(draftMarker);draftMarker=null;}});
 
-async function uploadPhotos(files,entryId) {
-  return Promise.all(Array.from(files).map(async(file,index)=>{ if(!file.type.startsWith("image/")) throw new Error("Only image files can be attached."); if(file.size>10*1024*1024) throw new Error("Each picture must be smaller than 10 MB."); const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"_"); const target=ref(storage,`journalPhotos/${user.uid}/${entryId}/${Date.now()}-${index}-${safe}`); await uploadBytes(target,file,{contentType:file.type}); return getDownloadURL(target); }));
+async function prepareImage(file) {
+  if(!file.type.startsWith("image/")) throw new Error("Only image files can be attached.");
+  if(file.size>25*1024*1024) throw new Error("Each original picture must be smaller than 25 MB.");
+  if(file.size<=2*1024*1024) return file;
+  try {
+    const bitmap=await createImageBitmap(file);
+    const scale=Math.min(1,2048/Math.max(bitmap.width,bitmap.height));
+    const canvas=document.createElement("canvas");
+    canvas.width=Math.max(1,Math.round(bitmap.width*scale)); canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+    canvas.getContext("2d").drawImage(bitmap,0,0,canvas.width,canvas.height); bitmap.close();
+    const blob=await new Promise((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error("Unable to resize this picture.")),"image/jpeg",.84));
+    return new File([blob],file.name.replace(/\.[^.]+$/,"")+".jpg",{type:"image/jpeg"});
+  } catch(error) {
+    if(file.size>10*1024*1024) throw new Error("This picture could not be resized and is larger than Firebase's 10 MB upload limit. Choose a smaller image.");
+    console.warn("Image resize unavailable; uploading the original:",error);
+    return file;
+  }
+}
+function uploadWithProgress(target,file,onProgress) {
+  return new Promise((resolve,reject)=>{
+    const task=uploadBytesResumable(target,file,{contentType:file.type});
+    let timeout=window.setTimeout(()=>{task.cancel();reject(new Error("Picture upload timed out. Check Firebase Storage rules and your connection."));},60000);
+    const refreshTimeout=()=>{clearTimeout(timeout);timeout=window.setTimeout(()=>{task.cancel();reject(new Error("Picture upload stalled. Check Firebase Storage rules and your connection."));},60000);};
+    task.on("state_changed",snapshot=>{refreshTimeout();onProgress(snapshot.totalBytes?Math.round(snapshot.bytesTransferred/snapshot.totalBytes*100):0);},error=>{clearTimeout(timeout);reject(error);},async()=>{clearTimeout(timeout);try{resolve(await getDownloadURL(task.snapshot.ref));}catch(error){reject(error);}});
+  });
+}
+async function uploadPhotos(files,entryId,onProgress) {
+  const urls=[]; const list=Array.from(files);
+  for(let index=0;index<list.length;index++) {
+    const file=await prepareImage(list[index]);
+    const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+    const target=ref(storage,`journalPhotos/${user.uid}/${entryId}/${Date.now()}-${index}-${safe}`);
+    urls.push(await uploadWithProgress(target,file,percent=>onProgress(index+1,list.length,percent)));
+  }
+  return urls;
 }
 async function saveEntry() {
   const lat=Number($("entry-lat").value),lng=Number($("entry-lng").value),title=$("entry-title").value.trim(),body=$("entry-body").value.trim(),when=new Date($("entry-date").value);
@@ -165,7 +198,7 @@ async function saveEntry() {
   if(!user) { $("entry-error").textContent="Your session is unavailable. Return to My Account and try again."; return; }
   const button=$("save-entry-btn"); const originalText=button.textContent; button.disabled=true; button.textContent="Saving…"; $("entry-error").textContent="";
   try { const id=$("entry-id").value; const existing=entries.find(e=>e.id===id); const entryRef=id?doc(db,"users",user.uid,"journalEntries",id):doc(collection(db,"users",user.uid,"journalEntries"));
-    const photoUrls=[...(existing?.photoUrls||[]),...await uploadPhotos($("entry-photos").files,entryRef.id)];
+    const photoUrls=[...(existing?.photoUrls||[]),...await uploadPhotos($("entry-photos").files,entryRef.id,(current,total,percent)=>{button.textContent=`Uploading ${current}/${total} · ${percent}%`;})];
     const payload={title,body,lat,lng,occurredAt:Timestamp.fromDate(when),photoUrls,ownerUid:user.uid,updatedAt:serverTimestamp()};
     if(id) await updateDoc(entryRef,payload); else await setDoc(entryRef,{...payload,createdAt:serverTimestamp()});
     $("entry-dialog").close(); await loadPrivateEntries(); await syncSharedJournal();
