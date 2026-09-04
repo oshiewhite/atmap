@@ -5,7 +5,9 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 import {
@@ -180,6 +182,18 @@ if (kind === "water") {
    Buttons
 ====================== */
 window.addEventListener("DOMContentLoaded", () => {
+  document.querySelector('a[href="journal.html"]')?.addEventListener("click", async (event) => {
+    event.preventDefault();
+    try {
+      if (typeof auth.authStateReady === "function") await auth.authStateReady();
+      await setPersistence(auth, browserLocalPersistence);
+      window.location.href = "journal.html";
+    } catch (err) {
+      console.error("Unable to preserve sign-in for My Journal:", err);
+      window.location.href = "journal.html";
+    }
+  });
+
   document.getElementById("back-btn")?.addEventListener("click", () => {
     window.location.href = "./index.html";
   });
