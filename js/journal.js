@@ -55,7 +55,14 @@ async function loadSharedEntries() {
   if(!snap.exists()) throw new Error("This share link is invalid or has been removed.");
   const data=snap.data(); entries=Array.isArray(data.entries)?data.entries:[]; $("page-title").textContent=data.groupName || "Shared trail journal"; renderEntries();
 }
-async function waitForAuth() { await authPersistenceReady; return new Promise(resolve=>{ let off=()=>{}; off=onAuthStateChanged(auth,u=>{off(); resolve(u);}); }); }
+async function waitForAuth() {
+  await authPersistenceReady;
+  if (typeof auth.authStateReady === "function") {
+    await auth.authStateReady();
+    return auth.currentUser;
+  }
+  return new Promise(resolve=>{ let off=()=>{}; off=onAuthStateChanged(auth,u=>{off(); resolve(u);}); });
+}
 async function requireUser() {
   user=await waitForAuth();
   if(!user) {
