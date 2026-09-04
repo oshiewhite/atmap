@@ -182,21 +182,63 @@ if (kind === "water") {
 /* ======================
    Buttons
 ====================== */
+function ensureStylesheet(href) {
+  if (document.querySelector(`link[href="${href}"]`)) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = href;
+  document.head.appendChild(link);
+}
+
+function ensureScript(src) {
+  if (window.L) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = src;
+    script.onload = resolve;
+    script.onerror = () => reject(new Error("Unable to load the journal map library."));
+    document.head.appendChild(script);
+  });
+}
+
+async function openJournalInPlace() {
+  if (typeof auth.authStateReady === "function") await auth.authStateReady();
+  if (!auth.currentUser) throw new Error("Your account session is not available.");
+
+  const response = await fetch("journal.html", { cache: "no-store" });
+  if (!response.ok) throw new Error("Unable to load My Journal.");
+  const journalDocument = new DOMParser().parseFromString(await response.text(), "text/html");
+
+  ensureStylesheet("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css");
+  ensureStylesheet("css/journal.css");
+  await ensureScript("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js");
+
+  const content = Array.from(journalDocument.body.children)
+    .filter(element => element.tagName !== "SCRIPT")
+    .map(element => document.importNode(element, true));
+
+  document.title = "My Journal | Appalachian Trail Map";
+  document.body.className = "";
+  document.body.replaceChildren(...content);
+  history.replaceState(null, "", "account.html#journal");
+  await import("./journal.js?v=10");
+}
+
+/* ======================
+   Buttons
+====================== */
 window.addEventListener("DOMContentLoaded", () => {
   document.querySelector('a[href="journal.html"]')?.addEventListener("click", async (event) => {
     event.preventDefault();
+    const link = event.currentTarget;
+    link.setAttribute("aria-busy", "true");
     try {
-      if (typeof auth.authStateReady === "function") await auth.authStateReady();
-      try {
-        await setPersistence(auth, browserLocalPersistence);
-      } catch (localError) {
-        console.warn("Local auth persistence unavailable; using this browser session:", localError);
-        await setPersistence(auth, browserSessionPersistence);
-      }
-      window.location.href = "journal.html";
+      await openJournalInPlace();
     } catch (err) {
-      console.error("Unable to preserve sign-in for My Journal:", err);
-      window.location.href = "journal.html";
+      console.error("Unable to open My Journal:", err);
+      link.removeAttribute("aria-busy");
+      const errorEl = document.getElementById("account-error");
+      if (errorEl) errorEl.textContent = err.message || "Unable to open My Journal.";
     }
   });
 
