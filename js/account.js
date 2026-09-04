@@ -7,7 +7,8 @@ import {
   signOut,
   onAuthStateChanged,
   setPersistence,
-  browserLocalPersistence
+  browserLocalPersistence,
+  browserSessionPersistence
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 import {
@@ -186,7 +187,12 @@ window.addEventListener("DOMContentLoaded", () => {
     event.preventDefault();
     try {
       if (typeof auth.authStateReady === "function") await auth.authStateReady();
-      await setPersistence(auth, browserLocalPersistence);
+      try {
+        await setPersistence(auth, browserLocalPersistence);
+      } catch (localError) {
+        console.warn("Local auth persistence unavailable; using this browser session:", localError);
+        await setPersistence(auth, browserSessionPersistence);
+      }
       window.location.href = "journal.html";
     } catch (err) {
       console.error("Unable to preserve sign-in for My Journal:", err);
