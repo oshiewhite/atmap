@@ -36,6 +36,13 @@ async function initializeFirebase() {
     });
   }
   auth = authMod.getAuth(app);
+  if (typeof auth.authStateReady === "function") await auth.authStateReady();
+  try {
+    await authMod.setPersistence(auth, authMod.browserLocalPersistence);
+  } catch (localError) {
+    console.warn("Local auth persistence unavailable; using this browser session:", localError);
+    await authMod.setPersistence(auth, authMod.browserSessionPersistence);
+  }
   googleProvider = new authMod.GoogleAuthProvider();
   db = firestoreMod.getFirestore(app);
 
