@@ -1,11 +1,10 @@
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, reauthenticateWithPopup, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { getFirestore, collection, doc, addDoc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
 
 const firebaseConfig = { apiKey:"AIzaSyBuER6gwaNw4om3OCHkwK7nIETeroG-vIs", authDomain:"at-map-tmc.firebaseapp.com", projectId:"at-map-tmc", storageBucket:"at-map-tmc.firebasestorage.app", messagingSenderId:"862190385314", appId:"1:862190385314:web:f7fbf6a9eed1061231fffb" };
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-const auth = getAuth(app), db = getFirestore(app), storage = getStorage(app);
+const auth = getAuth(app), db = getFirestore(app);
 const authPersistenceReady = (async () => {
   if (typeof auth.authStateReady === "function") await auth.authStateReady();
   try {
@@ -16,6 +15,8 @@ const authPersistenceReady = (async () => {
   }
 })();
 const provider = new GoogleAuthProvider();
+const driveProvider = new GoogleAuthProvider();
+driveProvider.addScope("https://www.googleapis.com/auth/drive.file");
 const params = new URLSearchParams(location.search);
 const shareToken = params.get("share");
 const readOnly = Boolean(shareToken);
@@ -162,33 +163,65 @@ async function prepareImage(file) {
   if(file.size<=2*1024*1024) return file;
   try {
     const bitmap=await createImageBitmap(file);
-    const scale=Math.min(1,2048/Math.max(bitmap.width,bitmap.height));
+    const scale=Math.min(1,1920/Math.max(bitmap.width,bitmap.height));
     const canvas=document.createElement("canvas");
     canvas.width=Math.max(1,Math.round(bitmap.width*scale)); canvas.height=Math.max(1,Math.round(bitmap.height*scale));
     canvas.getContext("2d").drawImage(bitmap,0,0,canvas.width,canvas.height); bitmap.close();
-    const blob=await new Promise((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error("Unable to resize this picture.")),"image/jpeg",.84));
+    const blob=await new Promise((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error("Unable to resize this picture.")),"image/jpeg",.82));
     return new File([blob],file.name.replace(/\.[^.]+$/,"")+".jpg",{type:"image/jpeg"});
   } catch(error) {
-    if(file.size>10*1024*1024) throw new Error("This picture could not be resized and is larger than Firebase's 10 MB upload limit. Choose a smaller image.");
+    if(file.size>10*1024*1024) throw new Error("This picture could not be resized. Choose a smaller image.");
     console.warn("Image resize unavailable; uploading the original:",error);
     return file;
   }
 }
-function uploadWithProgress(target,file,onProgress) {
-  return new Promise((resolve,reject)=>{
-    const task=uploadBytesResumable(target,file,{contentType:file.type});
-    let timeout=window.setTimeout(()=>{task.cancel();reject(new Error("Picture upload timed out. Check Firebase Storage rules and your connection."));},60000);
-    const refreshTimeout=()=>{clearTimeout(timeout);timeout=window.setTimeout(()=>{task.cancel();reject(new Error("Picture upload stalled. Check Firebase Storage rules and your connection."));},60000);};
-    task.on("state_changed",snapshot=>{refreshTimeout();onProgress(snapshot.totalBytes?Math.round(snapshot.bytesTransferred/snapshot.totalBytes*100):0);},error=>{clearTimeout(timeout);reject(error);},async()=>{clearTimeout(timeout);try{resolve(await getDownloadURL(task.snapshot.ref));}catch(error){reject(error);}});
-  });
+let driveAccessToken="";
+async function getDriveAccessToken() {
+  if(driveAccessToken) return driveAccessToken;
+  const result=await reauthenticateWithPopup(user,driveProvider);
+  const credential=GoogleAuthProvider.credentialFromResult(result);
+  if(!credential?.accessToken) throw new Error("Google Drive permission was not granted.");
+  driveAccessToken=credential.accessToken;
+  return driveAccessToken;
+}
+async function driveRequest(url,options={}) {
+  const token=await getDriveAccessToken();
+  const response=await fetch(url,{...options,headers:{Authorization:`Bearer ${token}`,...(options.headers||{})}});
+  if(!response.ok) {
+    let detail=""; try{detail=(await response.json())?.error?.message||"";}catch{}
+    if(response.status===401){driveAccessToken="";throw new Error("Google Drive authorization expired. Please try the upload again.");}
+    if(response.status===403) throw new Error(detail||"Google Drive blocked the upload. Enable the Google Drive API for this Firebase project.");
+    throw new Error(detail||`Google Drive upload failed (${response.status}).`);
+  }
+  return response;
+}
+async function getJournalDriveFolder() {
+  const cached=localStorage.getItem(`atmap-drive-folder-${user.uid}`);
+  if(cached) return cached;
+  const q=encodeURIComponent("name = 'AT Map Journal' and mimeType = 'application/vnd.google-apps.folder' and trashed = false");
+  const found=await driveRequest(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)&spaces=drive`);
+  const files=(await found.json()).files||[];
+  if(files[0]?.id){localStorage.setItem(`atmap-drive-folder-${user.uid}`,files[0].id);return files[0].id;}
+  const created=await driveRequest("https://www.googleapis.com/drive/v3/files?fields=id",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:"AT Map Journal",mimeType:"application/vnd.google-apps.folder",appProperties:{createdBy:"atmap-journal"}})});
+  const id=(await created.json()).id; localStorage.setItem(`atmap-drive-folder-${user.uid}`,id); return id;
+}
+async function uploadPhotoToDrive(file,folderId) {
+  const metadata=await driveRequest("https://www.googleapis.com/drive/v3/files?fields=id",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:file.name,parents:[folderId],appProperties:{createdBy:"atmap-journal"}})});
+  const fileId=(await metadata.json()).id;
+  await driveRequest(`https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(fileId)}?uploadType=media`,{method:"PATCH",headers:{"Content-Type":file.type},body:file});
+  await driveRequest(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/permissions`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"anyone",role:"reader",allowFileDiscovery:false})});
+  return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1600`;
 }
 async function uploadPhotos(files,entryId,onProgress) {
   const urls=[]; const list=Array.from(files);
+  if(!list.length) return urls;
+  onProgress(0,list.length,0);
+  const folderId=await getJournalDriveFolder();
   for(let index=0;index<list.length;index++) {
     const file=await prepareImage(list[index]);
-    const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
-    const target=ref(storage,`journalPhotos/${user.uid}/${entryId}/${Date.now()}-${index}-${safe}`);
-    urls.push(await uploadWithProgress(target,file,percent=>onProgress(index+1,list.length,percent)));
+    onProgress(index+1,list.length,25);
+    urls.push(await uploadPhotoToDrive(file,folderId));
+    onProgress(index+1,list.length,100);
   }
   return urls;
 }
@@ -206,9 +239,7 @@ async function saveEntry() {
     console.error(e);
     const message=e?.code==="permission-denied"
       ? "Firebase blocked this save. Publish the new Firestore rules, then try again."
-      : e?.code==="storage/unauthorized"
-        ? "Firebase Storage blocked the picture upload. Publish the new Storage rules, then try again."
-        : e.message||"Could not save this entry.";
+      : e.message||"Could not save this entry.";
     $("entry-error").textContent=message;
     $("entry-error").scrollIntoView({behavior:"smooth",block:"center"});
     alert(message);
