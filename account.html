@@ -10,8 +10,9 @@
     .card { background: rgba(0,0,0,0.35); color: white; padding: 16px; border-radius: 14px; margin-bottom: 14px; }
     .row { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
     .muted { opacity: 0.8; font-size: 13px; }
-    .btn { padding: 10px 12px; border-radius: 10px; border: 0; cursor:pointer; font-weight:700; }
+    .btn { padding: 10px 12px; border-radius: 10px; border: 0; cursor:pointer; font-weight:700; text-decoration:none; }
     .btn-primary { background:#2b63ff; color:white; }
+    .btn-journal { background:#194f35; color:white; }
     .btn-ghost { background: rgba(255,255,255,0.12); color:white; }
     ul { list-style:none; padding:0; margin:0; }
     li { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.12); }
@@ -27,6 +28,7 @@
           <div class="muted" id="account-email"></div>
         </div>
         <div class="row">
+          <a class="btn btn-journal" href="journal.html">My Journal</a>
           <button class="btn btn-ghost" id="back-btn">Back to map</button>
           <button class="btn btn-primary" id="signout-btn">Sign out</button>
         </div>
@@ -53,3 +55,4 @@
   <script type="module" src="js/account.js"></script>
 </body>
 </html>
+
