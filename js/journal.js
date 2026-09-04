@@ -1,11 +1,14 @@
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { getFirestore, collection, doc, addDoc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
 
 const firebaseConfig = { apiKey:"AIzaSyBuER6gwaNw4om3OCHkwK7nIETeroG-vIs", authDomain:"at-map-tmc.firebaseapp.com", projectId:"at-map-tmc", storageBucket:"at-map-tmc.firebasestorage.app", messagingSenderId:"862190385314", appId:"1:862190385314:web:f7fbf6a9eed1061231fffb" };
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app), db = getFirestore(app), storage = getStorage(app);
+const authPersistenceReady = setPersistence(auth, browserLocalPersistence).catch(error => {
+  console.warn("Unable to set local authentication persistence:", error);
+});
 const provider = new GoogleAuthProvider();
 const params = new URLSearchParams(location.search);
 const shareToken = params.get("share");
@@ -52,7 +55,7 @@ async function loadSharedEntries() {
   if(!snap.exists()) throw new Error("This share link is invalid or has been removed.");
   const data=snap.data(); entries=Array.isArray(data.entries)?data.entries:[]; $("page-title").textContent=data.groupName || "Shared trail journal"; renderEntries();
 }
-function waitForAuth() { return new Promise(resolve=>{ let off=()=>{}; off=onAuthStateChanged(auth,u=>{off(); resolve(u);}); }); }
+async function waitForAuth() { await authPersistenceReady; return new Promise(resolve=>{ let off=()=>{}; off=onAuthStateChanged(auth,u=>{off(); resolve(u);}); }); }
 async function requireUser() {
   user=await waitForAuth();
   if(!user) {
