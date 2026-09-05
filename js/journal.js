@@ -178,9 +178,42 @@ async function prepareImage(file) {
 let driveAccessToken="";
 function confirmDriveConnection() {
   const dialog=$("drive-connect-dialog");
+  const connectButton=$("drive-connect-btn");
+  const errorElement=$("drive-connect-error");
   dialog.returnValue="";
+  errorElement.textContent="";
   dialog.showModal();
-  return new Promise(resolve=>dialog.addEventListener("close",()=>resolve(dialog.returnValue==="connect"),{once:true}));
+  return new Promise(resolve=>{
+    let authorizing=false;
+    const finish=()=>{
+      connectButton.removeEventListener("click",connect);
+      resolve(dialog.returnValue==="connect" && Boolean(driveAccessToken));
+    };
+    const connect=async()=>{
+      if(authorizing) return;
+      authorizing=true;
+      connectButton.disabled=true;
+      connectButton.textContent="Connecting…";
+      errorElement.textContent="";
+      try {
+        await getDriveAccessToken();
+        dialog.close("connect");
+      } catch(error) {
+        console.error("Google Drive authorization failed:",error);
+        errorElement.textContent=error?.code==="auth/popup-blocked"
+          ? "Your browser blocked the Google window. Allow pop-ups for ATMap and tap Connect Google Drive again."
+          : error?.code==="auth/popup-closed-by-user"
+            ? "Google Drive was not connected. Tap Connect Google Drive when you are ready."
+            : error.message||"Google Drive could not be connected. Please try again.";
+      } finally {
+        authorizing=false;
+        connectButton.disabled=false;
+        connectButton.textContent="Connect Google Drive";
+      }
+    };
+    connectButton.addEventListener("click",connect);
+    dialog.addEventListener("close",finish,{once:true});
+  });
 }
 async function getDriveAccessToken() {
   if(driveAccessToken) return driveAccessToken;
