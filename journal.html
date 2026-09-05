@@ -75,10 +75,11 @@
         <button class="icon-btn" value="cancel" aria-label="Close" type="submit">×</button>
       </div>
       <p>Journal photos are saved to your own Google Drive so ATMap does not have to store your images on its servers. Connecting Google Drive allows ATMap to upload these selected photos to your private AT Map Journal folder.</p>
+      <p id="drive-connect-error" class="error" role="alert"></p>
       <div class="dialog-actions">
         <span class="spacer"></span>
         <button class="btn" value="cancel" type="submit">Cancel</button>
-        <button class="btn btn-primary" value="connect" type="submit">Connect Google Drive</button>
+        <button id="drive-connect-btn" class="btn btn-primary" type="button">Connect Google Drive</button>
       </div>
     </form>
   </dialog>
