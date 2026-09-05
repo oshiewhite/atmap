@@ -1,5 +1,5 @@
 // service-worker.js
-const CACHE_NAME = 'app-cache-v13';
+const CACHE_NAME = 'app-cache-v14';
 const MAX_NUMBERED_GEOJSON = 350;
 const OFFLINE_ASSETS = [
   'index.html', 'account.html', 'journal.html', 'manifest.json',
