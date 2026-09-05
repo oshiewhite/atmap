@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, reauthenticateWithPopup, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, reauthenticateWithPopup, reauthenticateWithRedirect, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { getFirestore, collection, doc, addDoc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const firebaseConfig = { apiKey:"AIzaSyBuER6gwaNw4om3OCHkwK7nIETeroG-vIs", authDomain:"at-map-tmc.firebaseapp.com", projectId:"at-map-tmc", storageBucket:"at-map-tmc.firebasestorage.app", messagingSenderId:"862190385314", appId:"1:862190385314:web:f7fbf6a9eed1061231fffb" };
@@ -176,6 +176,26 @@ async function prepareImage(file) {
   }
 }
 let driveAccessToken="";
+const useDriveRedirect=matchMedia("(pointer: coarse)").matches||/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+function pendingUploadDb() {
+  return new Promise((resolve,reject)=>{
+    const request=indexedDB.open("atmap-journal",1);
+    request.onupgradeneeded=()=>request.result.createObjectStore("pending");
+    request.onsuccess=()=>resolve(request.result);
+    request.onerror=()=>reject(request.error);
+  });
+}
+async function storePendingDriveUpload(files) {
+  const draft={id:$("entry-id").value,title:$("entry-title").value,body:$("entry-body").value,date:$("entry-date").value,lat:$("entry-lat").value,lng:$("entry-lng").value};
+  const db=await pendingUploadDb();
+  await new Promise((resolve,reject)=>{const tx=db.transaction("pending","readwrite");tx.objectStore("pending").put({uid:user.uid,draft,files},"drive-upload");tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});
+  db.close();
+}
+async function takePendingDriveUpload() {
+  const db=await pendingUploadDb();
+  const value=await new Promise((resolve,reject)=>{const tx=db.transaction("pending","readwrite");const store=tx.objectStore("pending");const request=store.get("drive-upload");request.onsuccess=()=>{const result=request.result;store.delete("drive-upload");resolve(result);};request.onerror=()=>reject(request.error);});
+  db.close(); return value;
+}
 function confirmDriveConnection() {
   const dialog=$("drive-connect-dialog");
   const connectButton=$("drive-connect-btn");
@@ -203,6 +223,12 @@ function confirmDriveConnection() {
       errorElement.textContent="";
       dialog.close();
       try {
+        if(useDriveRedirect) {
+          await storePendingDriveUpload(Array.from($("entry-photos").files));
+          sessionStorage.setItem("atmap-drive-redirect-pending","1");
+          await reauthenticateWithRedirect(user,driveProvider);
+          return;
+        }
         await Promise.race([
           getDriveAccessToken(),
           new Promise((_,reject)=>setTimeout(()=>reject(new Error("Google did not open. Allow pop-ups for ATMap, then try again.")),20000))
@@ -276,13 +302,13 @@ async function uploadPhotos(files,entryId,onProgress) {
   }
   return urls;
 }
-async function saveEntry() {
+async function saveEntry(pendingFiles=null) {
   const lat=Number($("entry-lat").value),lng=Number($("entry-lng").value),title=$("entry-title").value.trim(),body=$("entry-body").value.trim(),when=new Date($("entry-date").value);
   if(!title||!body||!Number.isFinite(lat)||!Number.isFinite(lng)||Number.isNaN(when.getTime())) { $("entry-error").textContent="Add a title, journal entry, date, and valid pin location."; return; }
   if(!user) { $("entry-error").textContent="Your session is unavailable. Return to My Account and try again."; return; }
   const button=$("save-entry-btn"); const originalText=button.textContent; button.disabled=true; button.textContent="Saving…"; $("entry-error").textContent="";
   try { const id=$("entry-id").value; const existing=entries.find(e=>e.id===id); const entryRef=id?doc(db,"users",user.uid,"journalEntries",id):doc(collection(db,"users",user.uid,"journalEntries"));
-    const uploadedPhotoUrls=await uploadPhotos($("entry-photos").files,entryRef.id,(current,total,percent)=>{button.textContent=`Uploading ${current}/${total} · ${percent}%`;});
+    const uploadedPhotoUrls=await uploadPhotos(pendingFiles||$("entry-photos").files,entryRef.id,(current,total,percent)=>{button.textContent=`Uploading ${current}/${total} · ${percent}%`;});
     if(uploadedPhotoUrls===null) return;
     const photoUrls=[...(existing?.photoUrls||[]),...uploadedPhotoUrls];
     const payload={title,body,lat,lng,occurredAt:Timestamp.fromDate(when),photoUrls,ownerUid:user.uid,updatedAt:serverTimestamp()};
@@ -299,6 +325,21 @@ async function saveEntry() {
   } finally { button.disabled=false; button.textContent=originalText; }
 }
 $("save-entry-btn").addEventListener("click",saveEntry);
+
+async function resumeDriveRedirectUpload() {
+  const token=sessionStorage.getItem("atmap-drive-redirect-token");
+  if(!token||sessionStorage.getItem("atmap-drive-redirect-pending")!=="1") return;
+  sessionStorage.removeItem("atmap-drive-redirect-token");
+  sessionStorage.removeItem("atmap-drive-redirect-pending");
+  driveAccessToken=token;
+  const pending=await takePendingDriveUpload();
+  if(!pending||pending.uid!==user.uid) return;
+  const d=pending.draft;
+  $("entry-id").value=d.id; $("entry-title").value=d.title; $("entry-body").value=d.body; $("entry-date").value=d.date; $("entry-lat").value=d.lat; $("entry-lng").value=d.lng;
+  positionDraft(Number(d.lat),Number(d.lng));
+  $("entry-dialog").showModal();
+  await saveEntry(pending.files);
+}
 $("delete-entry-btn").addEventListener("click",async()=>{ const id=$("entry-id").value; if(!id||!confirm("Delete this journal entry?"))return; await deleteDoc(doc(db,"users",user.uid,"journalEntries",id)); $("entry-dialog").close(); await loadPrivateEntries(); await syncSharedJournal(); });
 
 async function loadGroup() { const snap=await getDoc(doc(db,"users",user.uid,"journalGroups","default")); group=snap.exists()?snap.data():null; members=group?.memberEmails||[]; }
@@ -311,5 +352,5 @@ $("copy-link-btn").addEventListener("click",async()=>{if(group?.shareToken){awai
 async function syncSharedJournal() { if(!group?.shareToken)return; await setDoc(doc(db,"sharedJournals",group.shareToken),{ownerUid:user.uid,groupName:group.name,entries:entries.map(serializeEntry),updatedAt:serverTimestamp()}); }
 $("save-group-btn").addEventListener("click",async()=>{const button=$("save-group-btn");button.disabled=true;try{const token=group?.shareToken||randomToken();group={name:$("group-name").value.trim()||"Shared trail journal",memberEmails:[...members],shareToken:token};await setDoc(doc(db,"users",user.uid,"journalGroups","default"),{...group,ownerUid:user.uid,updatedAt:serverTimestamp()},{merge:true});await syncSharedJournal();$("share-link").value=shareUrl();}catch(e){console.error(e);$("group-error").textContent=e.message||"Could not save this group.";}finally{button.disabled=false;}});
 
-(async()=>{loadTrailContext();try{if(readOnly)await loadSharedEntries();else{await requireUser();if(!user)return;await loadPrivateEntries();}}catch(e){console.error(e);setStatus(e.message||"Unable to load this journal.");}})();
+(async()=>{loadTrailContext();try{if(readOnly)await loadSharedEntries();else{await requireUser();if(!user)return;await loadPrivateEntries();await resumeDriveRedirectUpload();}}catch(e){console.error(e);setStatus(e.message||"Unable to load this journal.");}})();
 
