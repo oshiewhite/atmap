@@ -324,7 +324,7 @@ async function saveEntry(pendingFiles=null) {
     alert(message);
   } finally { button.disabled=false; button.textContent=originalText; }
 }
-$("save-entry-btn").addEventListener("click",saveEntry);
+$("save-entry-btn").addEventListener("click",()=>saveEntry());
 
 async function resumeDriveRedirectUpload() {
   const token=sessionStorage.getItem("atmap-drive-redirect-token");
