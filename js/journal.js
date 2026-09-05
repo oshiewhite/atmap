@@ -176,6 +176,12 @@ async function prepareImage(file) {
   }
 }
 let driveAccessToken="";
+function confirmDriveConnection() {
+  const dialog=$("drive-connect-dialog");
+  dialog.returnValue="";
+  dialog.showModal();
+  return new Promise(resolve=>dialog.addEventListener("close",()=>resolve(dialog.returnValue==="connect"),{once:true}));
+}
 async function getDriveAccessToken() {
   if(driveAccessToken) return driveAccessToken;
   const result=await reauthenticateWithPopup(user,driveProvider);
@@ -215,6 +221,7 @@ async function uploadPhotoToDrive(file,folderId) {
 async function uploadPhotos(files,entryId,onProgress) {
   const urls=[]; const list=Array.from(files);
   if(!list.length) return urls;
+  if(!driveAccessToken && !await confirmDriveConnection()) return null;
   onProgress(0,list.length,0);
   const folderId=await getJournalDriveFolder();
   for(let index=0;index<list.length;index++) {
@@ -231,7 +238,9 @@ async function saveEntry() {
   if(!user) { $("entry-error").textContent="Your session is unavailable. Return to My Account and try again."; return; }
   const button=$("save-entry-btn"); const originalText=button.textContent; button.disabled=true; button.textContent="Saving…"; $("entry-error").textContent="";
   try { const id=$("entry-id").value; const existing=entries.find(e=>e.id===id); const entryRef=id?doc(db,"users",user.uid,"journalEntries",id):doc(collection(db,"users",user.uid,"journalEntries"));
-    const photoUrls=[...(existing?.photoUrls||[]),...await uploadPhotos($("entry-photos").files,entryRef.id,(current,total,percent)=>{button.textContent=`Uploading ${current}/${total} · ${percent}%`;})];
+    const uploadedPhotoUrls=await uploadPhotos($("entry-photos").files,entryRef.id,(current,total,percent)=>{button.textContent=`Uploading ${current}/${total} · ${percent}%`;});
+    if(uploadedPhotoUrls===null) return;
+    const photoUrls=[...(existing?.photoUrls||[]),...uploadedPhotoUrls];
     const payload={title,body,lat,lng,occurredAt:Timestamp.fromDate(when),photoUrls,ownerUid:user.uid,updatedAt:serverTimestamp()};
     if(id) await updateDoc(entryRef,payload); else await setDoc(entryRef,{...payload,createdAt:serverTimestamp()});
     $("entry-dialog").close(); await loadPrivateEntries(); await syncSharedJournal();
