@@ -184,10 +184,16 @@ function confirmDriveConnection() {
   errorElement.textContent="";
   dialog.showModal();
   return new Promise(resolve=>{
-    let authorizing=false;
-    const finish=()=>{
+    let authorizing=false,settled=false;
+    const settle=value=>{
+      if(settled) return;
+      settled=true;
       connectButton.removeEventListener("click",connect);
-      resolve(dialog.returnValue==="connect" && Boolean(driveAccessToken));
+      dialog.removeEventListener("close",finish);
+      resolve(value);
+    };
+    const finish=()=>{
+      if(!authorizing) settle(false);
     };
     const connect=async()=>{
       if(authorizing) return;
@@ -195,9 +201,13 @@ function confirmDriveConnection() {
       connectButton.disabled=true;
       connectButton.textContent="Connecting…";
       errorElement.textContent="";
+      dialog.close();
       try {
-        await getDriveAccessToken();
-        dialog.close("connect");
+        await Promise.race([
+          getDriveAccessToken(),
+          new Promise((_,reject)=>setTimeout(()=>reject(new Error("Google did not open. Allow pop-ups for ATMap, then try again.")),20000))
+        ]);
+        settle(true);
       } catch(error) {
         console.error("Google Drive authorization failed:",error);
         errorElement.textContent=error?.code==="auth/popup-blocked"
@@ -205,14 +215,15 @@ function confirmDriveConnection() {
           : error?.code==="auth/popup-closed-by-user"
             ? "Google Drive was not connected. Tap Connect Google Drive when you are ready."
             : error.message||"Google Drive could not be connected. Please try again.";
-      } finally {
         authorizing=false;
+        if(!dialog.open) dialog.showModal();
+      } finally {
         connectButton.disabled=false;
         connectButton.textContent="Connect Google Drive";
       }
     };
     connectButton.addEventListener("click",connect);
-    dialog.addEventListener("close",finish,{once:true});
+    dialog.addEventListener("close",finish);
   });
 }
 async function getDriveAccessToken() {
