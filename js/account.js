@@ -3,6 +3,7 @@ import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com
 import {
   getAuth,
   GoogleAuthProvider,
+  getRedirectResult,
   signInWithPopup,
   signOut,
   onAuthStateChanged,
@@ -221,13 +222,13 @@ async function openJournalInPlace() {
   document.body.className = "";
   document.body.replaceChildren(...content);
   history.replaceState(null, "", "account.html#journal");
-  await import("./journal.js?v=13");
+  await import("./journal.js?v=17");
 }
 
 /* ======================
    Buttons
 ====================== */
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
   document.querySelector('a[href="journal.html"]')?.addEventListener("click", async (event) => {
     event.preventDefault();
     const link = event.currentTarget;
@@ -250,6 +251,22 @@ window.addEventListener("DOMContentLoaded", () => {
     await signOut(auth);
     window.location.href = "./index.html";
   });
+
+  if (location.hash === "#journal" && sessionStorage.getItem("atmap-drive-redirect-pending") === "1") {
+    try {
+      const result = await getRedirectResult(auth);
+      const credential = result ? GoogleAuthProvider.credentialFromResult(result) : null;
+      if (!credential?.accessToken) throw new Error("Google Drive did not return authorization.");
+      sessionStorage.setItem("atmap-drive-redirect-token", credential.accessToken);
+      await openJournalInPlace();
+      return;
+    } catch (err) {
+      console.error("Unable to finish Google Drive authorization:", err);
+      sessionStorage.removeItem("atmap-drive-redirect-pending");
+      const errorEl = document.getElementById("account-error");
+      if (errorEl) errorEl.textContent = err.message || "Unable to connect Google Drive.";
+    }
+  }
 
   loadAccount().catch(err => {
     console.error(err);
